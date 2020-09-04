@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+echo "Running vendor/bin/php-cs-fixer fix ./app"
+vendor/bin/php-cs-fixer fix ./app
+echo "Running vendor/bin/php-cs-fixer fix ./tests"
+vendor/bin/php-cs-fixer fix ./tests

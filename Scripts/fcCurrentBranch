@@ -1,0 +1,24 @@
+#!/bin/zsh
+
+function getBranchName(){
+	git branch --show-current
+}
+
+
+echo "Have you saved changes? Save them now then enter then enter any character"
+read resp
+
+branchname=$(getBranchName)
+
+echo $branchname
+git add .
+echo "FILES ADDED"
+git status
+echo "Enter commit message: "
+read message
+echo "COMMITTING"
+git commit -m "$message"
+echo "PUSHING"
+git push origin $branchname
+git checkout master
+git pull
