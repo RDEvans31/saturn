@@ -10,15 +10,17 @@ from twisted.internet import reactor
 
 def readPrice(msg):
     ''' define how to process incoming WebSocket messages '''
-    if msg['e'] != 'error':
-        price['last'] = msg['c']
-        if entry < float(price['last']):
-            print('buy')
-            trade['pair'] = tradingPair
-            trade['entered'] = True
-            tradeActive(trade) 
-    else:
-        price['error'] = True
+    print(msg)
+    # if msg['e'] != 'error':
+    #     print(msg)
+    #     # price['last'] = msg['c']
+    #     # if entry < float(price['last']):
+    #     #     print('buy')
+    #     #     trade['pair'] = tradingPair
+    #     #     trade['entered'] = True
+    #     #     tradeActive(trade) 
+    # else:
+    #     price['error'] = True
 
 def tradeActive(t):
     while trade['entered']:
@@ -31,8 +33,5 @@ trade = {'pair' : None, 'entered' : False}
 bsm = BinanceSocketManager(client)
 tradingPair = 'ETHUSDT' #test
 entry = 365 #test
-conn_key = bsm.start_symbol_miniticker_socket(tradingPair, readPrice)
+conn_key = bsm.start_multiplex_socket(['ethusdt@miniTicker','btcusdt@miniTicker','xrpusdt'],readPrice)
 bsm.start()
-
-
-
