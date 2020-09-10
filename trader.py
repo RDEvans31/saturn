@@ -19,7 +19,9 @@ class Trade:
 
     def create_entry_order(self):
         
+    def set__tp(self):
 
+    def set_sl(self):
 
 def readPrice(msg):
     ''' define how to process incoming WebSocket messages '''
