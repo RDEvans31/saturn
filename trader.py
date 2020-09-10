@@ -12,13 +12,19 @@ from twisted.internet import reactor
 class Trade: 
     def __init__(self,side,symbol,entry,sl,tp_array):
         self.entry = entry
+        self.symbol = symbol
         self.side = side
         self.sl = sl
         self.tp = tp_array
         self.entered = False
 
     def create_entry_order(self):
-        
+        order = client.futures_create_order(
+            symbol = self.symbol,
+            side = self.side,
+            
+        )
+
     def set__tp(self):
 
     def set_sl(self):
