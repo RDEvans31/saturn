@@ -46,14 +46,24 @@ class FuturesAccount:
         
 class Order:
     def __init__(self,orderDict):
+        print(orderDict)
         self.id = orderDict['orderId']
         self.symbol = orderDict['symbol']
-        self.price = float(orderDict['price'])
         self.type = orderDict['type']
+        self.price = self.getPrice(self.type,orderDict)
         self.status = orderDict['status']
         self.side = orderDict['side']
         if (self.type == 'STOP'):
             self.stopPrice = orderDict['stopPrice']
+    
+    def getPrice(self,orderType,orderDict):
+        print(orderDict)
+        switcher = {
+            'MARKET': lambda orderDict: float(orderDict.get('avgPrice')),
+            'LIMIT': lambda orderDict: float(orderDict.get('price')),
+            'STOP': lambda orderDict: float(orderDict.get('price')),
+        }
+        return switcher.get(orderType)
 
 class Position:
     def __init__(self,posDict):

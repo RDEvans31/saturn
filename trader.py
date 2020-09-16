@@ -10,15 +10,19 @@ from binance.websockets import BinanceSocketManager
 from twisted.internet import reactor
 
 class Trade: 
-    def __init__(self,side,symbol,entry,sl,tp_array):
+    def __init__(self,side,t,symbol,entry,sl,tp_array):
         self.entry = entry
         self.side = side
+        self.type = t
+        self.symbol = symbol
         self.sl = sl
         self.tp = tp_array
         self.entered = False
 
     def create_entry_order(self):
-        
+        # if self.type == LIMIT:
+
+        # else if 
     def set__tp(self):
 
     def set_sl(self):
