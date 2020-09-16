@@ -12,6 +12,7 @@ from twisted.internet import reactor
 class Trade: 
     def __init__(self,side,t,symbol,entry,sl,tp_array):
         self.entry = entry
+        self.symbol = symbol
         self.side = side
         self.type = t
         self.symbol = symbol
@@ -23,6 +24,12 @@ class Trade:
         # if self.type == LIMIT:
 
         # else if 
+        order = client.futures_create_order(
+            symbol = self.symbol,
+            side = self.side,
+            
+        )
+
     def set__tp(self):
 
     def set_sl(self):
