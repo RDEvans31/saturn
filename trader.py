@@ -12,28 +12,45 @@ from twisted.internet import reactor
 class Trade: 
     def __init__(self,side,t,symbol,entry,sl,tp_array):
         self.entry = entry
-        self.symbol = symbol
-        self.side = side
-        self.type = t
-        self.symbol = symbol
+        self.symbol = str(symbol)
+        self.side = str(side)
+        self.type = str(t)
         self.sl = sl
         self.tp = tp_array
+        self.entry_id = self.symbol+"entry"
+        #check entry order to see if its filled or not
         self.entered = False
+        account = User(client)
+        self.quantity = account.futures_account.trade_amount * self.entry
+        if (not(self.entered)):
+            self.create_entry_order()
+
+    def entry_filled_check(self):
+        entry_order = user.Order(client.get_order(symbol = self.symbol, order = self.entry_id))
+        if (entry_order.status == "FILLED"):
+            return True
+        else:
+            return False
 
     def create_entry_order(self):
-        # if self.type == LIMIT:
-
-        # else if 
         order = client.futures_create_order(
+            newClientOrderId = self.entry_id,
             symbol = self.symbol,
             side = self.side,
-            
+            type = 'STOP',
+            quantity = self.quantity,
+            price = self.entry,
+            stopPrice = self.entry,
+            timeInForce = GTC,
         )
 
+
     def set__tp(self):
-
+        return None
     def set_sl(self):
-
+        if (self.entered):
+            
+        return None
 def readPrice(msg):
     ''' define how to process incoming WebSocket messages '''
 

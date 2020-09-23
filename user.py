@@ -33,6 +33,7 @@ class FuturesAccount:
         self.balance = client.futures_account_balance()
         self.futures_open_positions = futures_open_positions
         self.open_orders = open_orders
+        self.trade_amount = 0.1*self.balance
     
     def get_futures_positions(self,position_info):
         open_positions = list(filter(lambda x: float(x['positionAmt'])!=0,position_info))
