@@ -10,20 +10,45 @@ from binance.websockets import BinanceSocketManager
 from twisted.internet import reactor
 
 class Trade: 
-    def __init__(self,side,t,symbol,entry,sl,tp_array):
+    def __init__(self,side,t,symbol,entry,sl,tp_array, price = None):
         self.entry = entry
         self.symbol = str(symbol)
         self.side = str(side)
         self.type = str(t)
         self.sl = sl
         self.tp = tp_array
+        self.current_price = price 
         self.entry_id = self.symbol+"entry"
         #check entry order to see if its filled or not
-        self.entered = False
+        self.entered = self.entry_filled_check()
+        self.structure_active = self.is_structure_active()
+        self.ended = self.is_trade_over()
+        
+        
+        
         account = User(client)
-        self.quantity = account.futures_account.trade_amount * self.entry
-        if (not(self.entered)):
-            self.create_entry_order()
+        
+        if (not(self.ended): #if the trade is not invalid
+
+            if (not(self.entered)): #entry not created yet
+                self.quantity = account.futures_account.trade_amount * self.entry
+                self.create_entry_order()
+            else if (): 
+
+
+    def is_structure_active(self):
+        if (self.current_price is not None):
+            if (self.current_price>self.sl):
+                return True
+            else:
+                return False
+        
+
+    def is_trade_over(self):
+        if (self.structure_active and self.current_price<self.sl):
+            return True
+        else:
+            return False
 
     def entry_filled_check(self):
         entry_order = user.Order(client.get_order(symbol = self.symbol, order = self.entry_id))

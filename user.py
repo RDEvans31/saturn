@@ -31,9 +31,10 @@ class FuturesAccount:
             open_orders.append(order_object)
         
         self.balance = client.futures_account_balance()
+        self.usdt_balance = self.balance[0]['balance']
         self.futures_open_positions = futures_open_positions
         self.open_orders = open_orders
-        self.trade_amount = 0.1*self.balance
+        self.trade_amount = 0.1*float(self.usdt_balance)
     
     def get_futures_positions(self,position_info):
         open_positions = list(filter(lambda x: float(x['positionAmt'])!=0,position_info))
@@ -41,13 +42,13 @@ class FuturesAccount:
         
     def show(self):
 
-        print(self.balance)
+        print(self.usdt_balance)
         print(list(map(lambda x: x.__dict__, self.futures_open_positions)))
         print(list(map(lambda x: x.__dict__, self.open_orders)))
         
 class Order:
     def __init__(self,orderDict):
-        print(orderDict)
+        #print(orderDict)
         self.id = orderDict['orderId']
         self.symbol = orderDict['symbol']
         self.type = orderDict['type']
@@ -58,7 +59,8 @@ class Order:
             self.stopPrice = orderDict['stopPrice']
     
     def getPrice(self,orderType,orderDict):
-        print(orderDict)
+        #print(orderDict)
+        #incomplete
         switcher = {
             'MARKET': lambda orderDict: float(orderDict.get('avgPrice')),
             'LIMIT': lambda orderDict: float(orderDict.get('price')),

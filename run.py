@@ -1,4 +1,5 @@
 from binance.client import Client
+import user
 import time
 
 client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK', '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4') 
@@ -16,6 +17,7 @@ def readPrice(msg):
         print(msg)
         #reconnect
     else:
+        user = user.User(client)
         for stream in msg:
             if (stream['stream'] == tradingPair):
                 print(stream)
@@ -29,6 +31,7 @@ def readPrice(msg):
 
 
 bsm = BinanceSocketManager(client, user_timeout = 20)
-trading_pairs = 
+tradingPair = 'ETHUSDT'
+trading_pairs = user.futures_account.futures_open_positions
 conn_key = bsm.start_multiplex_socket(['ethusdt@miniTicker','btcusdt@miniTicker','xrpusdt@miniticker'],readPrice)
 bsm.start()
