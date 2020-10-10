@@ -6,7 +6,7 @@ client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYF
 # client.API_URL = 'https://testnet.binance.vision/api' 
 
 class User:
-    def __init__(self,client):
+    def __init__(self):
         self.client = client
         self.futures_account = FuturesAccount(client)
 
@@ -31,10 +31,9 @@ class FuturesAccount:
             open_orders.append(order_object)
         
         self.balance = client.futures_account_balance()
-        self.usdt_balance = self.balance[0]['balance']
+        self.usdt_balance = float(self.balance[0]['balance'])
         self.futures_open_positions = futures_open_positions
         self.open_orders = open_orders
-        self.trade_amount = 0.1*float(self.usdt_balance)
     
     def get_futures_positions(self,position_info):
         open_positions = list(filter(lambda x: float(x['positionAmt'])!=0,position_info))
@@ -62,9 +61,9 @@ class Order:
         #print(orderDict)
         #incomplete
         switcher = {
-            'MARKET': lambda orderDict: float(orderDict.get('avgPrice')),
-            'LIMIT': lambda orderDict: float(orderDict.get('price')),
-            'STOP': lambda orderDict: float(orderDict.get('price')),
+            'MARKET': float(lambda orderDict: orderDict.get('avgPrice')),
+            'LIMIT': float(lambda orderDict: orderDict.get('price')),
+            'STOP': float(lambda orderDict: orderDict.get('price')),
         }
         return switcher.get(orderType)
 
@@ -84,7 +83,7 @@ class Position:
 
 
 
-account = User(client)
+account = User()
 account.show()
 # for x in range(1,5):
 #     print("Updating")
