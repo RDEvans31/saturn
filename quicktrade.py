@@ -39,9 +39,12 @@ my_account = user.User()
 print('Enter trade')
 
 
-side = str(decide_side(pyip.inputChoice(prompt='BUY or SELL (b or s): ',choices=['b','s'])))
+side = decide_side(pyip.inputChoice(prompt='BUY or SELL (b or s): ',choices=['b','s']))
 symbol = str(input('Symbol: '))
-fraction_to_trade = float(input('Enter portion to trade (eg. 0.1): '))
+current_price = client.get_avg_price(symbol=symbol)
+info = client.get_symbol_info(symbol=symbol)
+print("Current price: ", current_price)
+fraction_to_trade = pyip.inputFloat(prompt='Enter portion to trade (eg. 0.1): ',max=1,greaterThan=0)
 entry = float(input('Entry: '))
 sl = float(input('Stop loss: '))
 tp_array = list(map(lambda x: float(x),input("Enter take profit points (seperated by comma): ").split(',')))
@@ -55,6 +58,6 @@ confirm = pyip.inputYesNo(prompt="Confirm? yes or no: ")
 if confirm == 'yes':
     trade.setup_trade()
 else:
-    print('Trade cancelled: ')
+    print('Trade cancelled. ')
 
 #trading_pairs = user.futures_account.futures_open_positions

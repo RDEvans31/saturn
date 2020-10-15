@@ -22,9 +22,7 @@ class TradeStatus:
         # self.next_target
 
 class Trade:
-    def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):
-
-        
+    def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):        
 
         self.entry = entry #entry price
         self.symbol = str(symbol)
@@ -40,11 +38,14 @@ class Trade:
         self.sl = sl
         self.tp = tp_array
         self.lev = leverage
+
+        self.set_leverage()
         
-        self.amount = percent_amount*account.futures_account.usdt_balance*entry
+        self.amount = round(percent_amount*account.futures_account.usdt_balance/entry, 3)
         # self.entered = self.entry_filled_check()
         # self.structure_active = self.is_structure_active()
         # self.ended = self.is_trade_over()
+    
     def create_entry_order(self):
         entry_order = client.futures_create_order(
             newClientOrderId = self.entry_id,
@@ -62,12 +63,9 @@ class Trade:
             newClientOrderId = self.sl_id,
             symbol = self.symbol,
             side = self.side,
-            type = 'STOP',
+            type = 'STOP_LOSS',
             quantity = self.amount,
-            price = self.sl,
             stopPrice = self.sl,
-            reduceOnly = "true",
-            timeInForce = 'GTC',
         )
 
     def set_leverage(self):
@@ -79,7 +77,10 @@ class Trade:
 class QuickTrade(Trade) :
     def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):
         super().__init__(side,percent_amount,symbol,entry,sl,tp_array, leverage)
-        self.callback_rate = self.calculate_callback()
+        if len(tp_array) == 1:
+            self.callback_rate = 1.6
+        else:
+            self.callback_rate = self.calculate_callback()
         
     def setup_trade(self):
         self.create_entry_order()
@@ -103,7 +104,7 @@ class QuickTrade(Trade) :
         for i in range(1,n):
             diff = 1-(self.tp[i-1]/self.tp[i])
             percentage_differences.append(diff*100)
-        return round(statistics.mean(percentage_differences),1)
+        return abs(round(statistics.mean(percentage_differences),1))
     
     
 # class DetailedTrade(Trade): 
