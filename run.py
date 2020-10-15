@@ -10,17 +10,17 @@ client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYF
 from binance.websockets import BinanceSocketManager
 from twisted.internet import reactor
 
-def readPrice(msg):
-    ''' define how to process incoming WebSocket messages '''
+# def readPrice(msg):
+#     ''' define how to process incoming WebSocket messages '''
 
-    if 'e' in msg: #msg['e'] == 'error':
-        print(msg)
-        #reconnect
-    else:
-        my_user = user.User()
-        for stream in msg:
-            if (stream['stream'] == tradingPair):
-                print(stream)
+#     if 'e' in msg: #msg['e'] == 'error':
+#         print(msg)
+#         #reconnect
+#     else:
+#         new_user = user.User()
+#         for stream in msg:
+#             if (stream['stream'] == tradingPair):
+#                 print(stream)
         # price['last'] = msg['c']
         # if entry < float(price['last']):
         #     print('buy')
@@ -32,7 +32,6 @@ def readPrice(msg):
 
 bsm = BinanceSocketManager(client, user_timeout = 20)
 my_user = user.User()
-tradingPair = 'ETHUSDT'
-trading_pairs = user.futures_account.futures_open_positions
+trading_pairs = my_user.futures_account.futures_open_positions
 conn_key = bsm.start_multiplex_socket(['ethusdt@miniTicker','btcusdt@miniTicker','xrpusdt@miniticker'],readPrice)
 bsm.start()

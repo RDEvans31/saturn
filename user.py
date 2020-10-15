@@ -1,6 +1,8 @@
 from binance.client import Client
+import json
 import time
 #connected to actual binance account
+
 client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK', '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4') 
 #client = Client('uuMkEps4tMUnkj0IJpDkzJRilyzylb0ajLpvQC1a9aad5X9hKSOcNLcRkXbNPcKE', 'VBmJ8JBeLglFIO3eT83lwKsAdI0PowjUf95EAlUoKiKbMf9aIQW6eO0CexXEq6su')
 # client.API_URL = 'https://testnet.binance.vision/api' 
@@ -8,9 +10,10 @@ client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYF
 class User:
     def __init__(self):
         self.client = client
-        self.futures_account = FuturesAccount(client)
+        self.futures_account = FuturesAccount(self.client)
 
     def show(self):
+        print('working')
         self.futures_account.show()
 
 class FuturesAccount:
@@ -20,7 +23,7 @@ class FuturesAccount:
         futures_open_positions=[]
 
         futures_open_positions_unfiltered = self.get_futures_positions(client.futures_position_information())
-        open_orders_unfiltered = list(filter(lambda x: x['status']=="NEW" or x['status']=="FILLED",client.futures_get_all_orders(limit = 5)))
+        open_orders_unfiltered = list(filter(lambda x: x['status']=="NEW" or x['status']=="FILLED",client.futures_get_all_orders(limit = 10)))
         
         for position in futures_open_positions_unfiltered:
             pos_object = Position(position)
@@ -40,7 +43,6 @@ class FuturesAccount:
         return open_positions
         
     def show(self):
-
         print(self.usdt_balance)
         print(list(map(lambda x: x.__dict__, self.futures_open_positions)))
         print(list(map(lambda x: x.__dict__, self.open_orders)))
@@ -61,12 +63,16 @@ class Order:
         #print(orderDict)
         #incomplete
         switcher = {
-            'MARKET': float(lambda orderDict: orderDict.get('avgPrice')),
-            'LIMIT': float(lambda orderDict: orderDict.get('price')),
-            'STOP': float(lambda orderDict: orderDict.get('price')),
+            'MARKET': self.__averageprice(orderDict),
+            'LIMIT': self.__price(orderDict),
+            'STOP': self.__price(orderDict),
         }
         return switcher.get(orderType)
-
+    
+    def __averageprice(self,orderDict):
+        return float(orderDict.get('avgPrice'))
+    def __price(self,orderDict):
+        return float(orderDict.get('price'))
 class Position:
     def __init__(self,posDict):
         self.symbol = posDict['symbol']
@@ -76,11 +82,6 @@ class Position:
         self.pnl = float(posDict['unRealizedProfit'])
         self.liq_price = float(posDict['liquidationPrice'])
         self.lev = int(posDict['leverage']) 
-
-
-#testnet does not support futures
-
-
 
 
 account = User()
