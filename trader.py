@@ -3,6 +3,8 @@ import enum
 import user
 import time
 import statistics
+from binance import exceptions
+from datetime import datetime
 
 account = user.User()
 client = account.client
@@ -23,11 +25,12 @@ class TradeStatus:
 
 class Trade:
     def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):        
-
+        
+        now = datetime.now()
         self.entry = entry #entry price
         self.symbol = str(symbol)
-        self.entry_id = self.symbol+"entry"
-        self.sl_id = self.symbol+"stoploss"
+        self.entry_id = self.symbol+"entry"+now.strftime("%d%m%Y_%H%M%S")
+        self.sl_id = self.symbol+"stoploss"+now.strftime("%d%m%Y_%H%M%S")
         self.side = str(side)
 
         if self.side == 'BUY':
@@ -41,34 +44,80 @@ class Trade:
 
         self.set_leverage()
         
-        self.amount = round(percent_amount*account.futures_account.usdt_balance/entry, 3)
+        precision = list(filter(lambda x : x['symbol'] == self.symbol,client.futures_exchange_info()['symbols']))[0]['quantityPrecision']
+        self.amount = float( "{:.{prec}f}".format( (percent_amount*account.futures_account.usdt_balance*leverage)/entry, prec=precision ))
+        self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
+        
         # self.entered = self.entry_filled_check()
         # self.structure_active = self.is_structure_active()
         # self.ended = self.is_trade_over()
     
     def create_entry_order(self):
-        entry_order = client.futures_create_order(
-            newClientOrderId = self.entry_id,
-            symbol = self.symbol,
-            side = self.side,
-            type = 'STOP',
-            quantity = self.amount,
-            price = self.entry,
-            stopPrice = self.entry,
-            timeInForce = 'GTC',
-        )
+        current_price = float(list(filter(lambda x : x['symbol'] == self.symbol, user.client.get_all_tickers()))[0]['price'])
+        if self.side == 'BUY':
+            if current_price >= self.entry:
+                entry_order = client.futures_create_order(
+                    newClientOrderId = self.entry_id,
+                    symbol = self.symbol,
+                    side = self.side,
+                    type = 'LIMIT',
+                    quantity = self.amount,
+                    price = self.entry,
+                    timeInForce = 'GTC',
+                )
+            else: 
+                entry_order = client.futures_create_order(
+                    newClientOrderId = self.entry_id,
+                    symbol = self.symbol,
+                    side = self.side,
+                    type = 'STOP',
+                    quantity = self.amount,
+                    price = self.entry,
+                    stopPrice = self.entry,
+                    timeInForce = 'GTC',
+                )
+        elif self.side == 'SELL':
+            if current_price <= self.entry:
+                entry_order = client.futures_create_order(
+                    newClientOrderId = self.entry_id,
+                    symbol = self.symbol,
+                    side = self.side,
+                    type = 'LIMIT',
+                    quantity = self.amount,
+                    price = self.entry,
+                    timeInForce = 'GTC',
+                )
+            else: 
+                entry_order = client.futures_create_order(
+                    newClientOrderId = self.entry_id,
+                    symbol = self.symbol,
+                    side = self.side,
+                    type = 'STOP',
+                    quantity = self.amount,
+                    price = self.entry,
+                    stopPrice = self.entry,
+                    timeInForce = 'GTC',
+                )
     
     def create_sl(self):
-        sl_order = client.futures_create_order(
+        sl_trail = client.futures_create_order(
             newClientOrderId = self.sl_id,
             symbol = self.symbol,
-            side = self.side,
-            type = 'STOP_LOSS',
+            side = self.sl_side,
+            type = 'TRAILING_STOP_MARKET',
             quantity = self.amount,
-            stopPrice = self.sl,
+            activationPrice = self.entry,
+            reduceOnly = "true",
+            callbackRate = self.sl_callback_rate
         )
 
     def set_leverage(self):
+        try:
+            margin = client.futures_change_margin_type(symbol=self.symbol, marginType='ISOLATED')
+            print("All good. Margin sorted.")
+        except exceptions.BinanceAPIException:
+            print("All good. Margin sorted.")
+
         leverage = client.futures_change_leverage(
             symbol = self.symbol,
             leverage = self.lev
@@ -84,16 +133,21 @@ class QuickTrade(Trade) :
         
     def setup_trade(self):
         self.create_entry_order()
-        self.create_sl()
         self.set_trailing_stop()
+        try:
+            self.create_sl()
+            print(f'Trailing SL set at {self.sl_callback_rate} from entry.')
+        except exceptions.BinanceAPIException as e:
+            print('Could not set SL')
+            print(e)
 
     def set_trailing_stop(self):
         take_profit_trail = client.futures_create_order(
             symbol = self.symbol,
-            side = self.side,
+            side = self.sl_side,
             type = 'TRAILING_STOP_MARKET',
             quantity = self.amount,
-            activationPrice = self.tp[0],
+            activationPrice = self.tp[1],
             reduceOnly = "true",
             callbackRate = self.callback_rate
         )

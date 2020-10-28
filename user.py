@@ -84,8 +84,8 @@ class Position:
         self.lev = int(posDict['leverage']) 
 
 
-account = User()
-account.show()
+# account = User()
+# account.show()
 # for x in range(1,5):
 #     print("Updating")
 #     time.sleep(2)
