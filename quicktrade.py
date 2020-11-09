@@ -43,7 +43,7 @@ print('Enter trade')
 
 side = decide_side(pyip.inputChoice(prompt='BUY or SELL (b or s): ',choices=['b','s']))
 symbol = str(input('Symbol: '))
-current_price = client.get_avg_price(symbol=symbol)
+current_price = float(list(filter(lambda x : x['symbol'] == symbol, user.client.get_all_tickers()))[0]['price'])
 fraction_to_trade = pyip.inputFloat(prompt='Enter portion to trade (eg. 0.1): ',max=1,greaterThan=0)
 print("Current price: ", current_price)
 entry = float(input('Entry: '))

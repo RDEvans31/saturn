@@ -161,7 +161,9 @@ class QuickTrade(Trade) :
         return abs(round(statistics.mean(percentage_differences),1))
     
     
-# class DetailedTrade(Trade): 
+class MonitoredTrade(Trade): 
+     def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):
+        super().__init__(side,percent_amount,symbol,entry,sl,tp_array, leverage)
 #     def __init__(self, price = None):
 #         self.current_price = price 
         
