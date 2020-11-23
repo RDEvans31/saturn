@@ -53,7 +53,7 @@ leverage = int(input("Enter leverage for trade: "))
 
 #creating trade
 
-trade = trader.QuickTrade(side = side,percent_amount = fraction_to_trade,symbol = symbol,entry = entry,sl = sl,tp_array = tp_array, leverage = leverage)
+trade = trader.TrailingTrade(side = side,percent_amount = fraction_to_trade,symbol = symbol,entry = entry,sl = sl,tp_array = tp_array, leverage = leverage)
 print(trade.__dict__)
 confirm = pyip.inputYesNo(prompt="Confirm? yes or no: ")
 if confirm == 'yes':

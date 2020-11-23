@@ -8,6 +8,7 @@ from datetime import datetime
 
 account = user.User()
 client = account.client
+fib_values=[0.236,0.382,0.5,0.618,0.786]
 
 #client = Client('uuMkEps4tMUnkj0IJpDkzJRilyzylb0ajLpvQC1a9aad5X9hKSOcNLcRkXbNPcKE', 'VBmJ8JBeLglFIO3eT83lwKsAdI0PowjUf95EAlUoKiKbMf9aIQW6eO0CexXEq6su')
 # client.API_URL = 'https://testnet.binance.vision/api' 
@@ -24,7 +25,7 @@ class TradeStatus:
         # self.next_target
 
 class Trade:
-    def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):        
+    def __init__(self,side,percent_amount,symbol,entry, leverage):        
         
         now = datetime.now()
         self.entry = entry #entry price
@@ -38,15 +39,14 @@ class Trade:
         else:
             self.sl_side = 'BUY'
 
-        self.sl = sl
-        self.tp = tp_array
+        
         self.lev = leverage
 
         self.set_leverage()
         
         precision = list(filter(lambda x : x['symbol'] == self.symbol,client.futures_exchange_info()['symbols']))[0]['quantityPrecision']
         self.amount = float( "{:.{prec}f}".format( (percent_amount*account.futures_account.usdt_balance*leverage)/entry, prec=precision ))
-        self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
+        
         
         # self.entered = self.entry_filled_check()
         # self.structure_active = self.is_structure_active()
@@ -98,18 +98,6 @@ class Trade:
                     stopPrice = self.entry,
                     timeInForce = 'GTC',
                 )
-    
-    def create_sl(self):
-        sl_trail = client.futures_create_order(
-            newClientOrderId = self.sl_id,
-            symbol = self.symbol,
-            side = self.sl_side,
-            type = 'TRAILING_STOP_MARKET',
-            quantity = self.amount,
-            activationPrice = self.entry,
-            reduceOnly = "true",
-            callbackRate = self.sl_callback_rate
-        )
 
     def set_leverage(self):
         try:
@@ -123,14 +111,19 @@ class Trade:
             leverage = self.lev
         )
 
-class QuickTrade(Trade) :
+class TrailingTrade(Trade) :
     def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):
-        super().__init__(side,percent_amount,symbol,entry,sl,tp_array, leverage)
-        if len(tp_array) == 1:
-            self.callback_rate = 1.6
+        super().__init__(side,percent_amount,symbol,entry,sl, leverage)
+        self.sl = sl
+        self.tp=tp_array
+        if len(tp_array) == 0:
+            self.tp_array[0]=1.0163*entry
+            self.callback_rate=1.6
         else:
             self.callback_rate = self.calculate_callback()
+        self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
         
+
     def setup_trade(self):
         self.create_entry_order()
         self.set_trailing_stop()
@@ -147,7 +140,7 @@ class QuickTrade(Trade) :
             side = self.sl_side,
             type = 'TRAILING_STOP_MARKET',
             quantity = self.amount,
-            activationPrice = self.tp[1],
+            activationPrice = self.tp[0],
             reduceOnly = "true",
             callbackRate = self.callback_rate
         )
@@ -159,11 +152,23 @@ class QuickTrade(Trade) :
             diff = 1-(self.tp[i-1]/self.tp[i])
             percentage_differences.append(diff*100)
         return abs(round(statistics.mean(percentage_differences),1))
+
+class SupResTrade(Trade):
+    def __init__(self,side,percent_amount,symbol,entry,sup,res, leverage):
+        super().__init__(side,percent_amount,symbol,entry, leverage)
+        self.res=res
+        self.sup=sup
+        self.fibs=self.calculate_fib_array
+        
     
-    
+    def calculate_fib_array(self):
+        delta=self.res-self.sup
+        return list(map(lambda x: self.sup+delta*x,fib_values))
+
+
 class MonitoredTrade(Trade): 
-     def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):
-        super().__init__(side,percent_amount,symbol,entry,sl,tp_array, leverage)
+     def __init__(self,side,percent_amount,symbol,entry,sl, leverage):
+        super().__init__(side,percent_amount,symbol,entry,sl, leverage)
 #     def __init__(self, price = None):
 #         self.current_price = price 
         
