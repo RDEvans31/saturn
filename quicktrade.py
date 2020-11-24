@@ -1,12 +1,9 @@
-from binance.client import Client
 import user
 import time
 import json
 import trader
 import pyinputplus as pyip
 from binance import exceptions
-
-client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK', '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4') 
 
 # from binance.websockets import BinanceSocketManager
 # from twisted.internet import reactor
@@ -41,19 +38,19 @@ print('Enter trade')
 
 #DEAL WITH PRECISION
 
-side = decide_side(pyip.inputChoice(prompt='BUY or SELL (b or s): ',choices=['b','s']))
 symbol = str(input('Symbol: '))
 current_price = float(list(filter(lambda x : x['symbol'] == symbol, user.client.get_all_tickers()))[0]['price'])
+side = decide_side(pyip.inputChoice(prompt='BUY or SELL (b or s): ',choices=['b','s']))
 fraction_to_trade = pyip.inputFloat(prompt='Enter portion to trade (eg. 0.1): ',max=1,greaterThan=0)
 print("Current price: ", current_price)
 entry = float(input('Entry: '))
-sl = float(input('Stop loss: '))
-tp_array = list(map(lambda x: float(x),input("Enter take profit points (seperated by comma): ").split(',')))
+#sl = float(input('Stop loss: '))
+#tp_array = list(map(lambda x: float(x),input("Enter take profit points (seperated by comma): ").split(',')))
 leverage = int(input("Enter leverage for trade: "))
 
 #creating trade
 
-trade = trader.TrailingTrade(side = side,percent_amount = fraction_to_trade,symbol = symbol,entry = entry,sl = sl,tp_array = tp_array, leverage = leverage)
+trade = trader.TrailingScalp(side = side,percent_amount = fraction_to_trade,symbol = symbol,entry = entry, leverage = leverage)
 print(trade.__dict__)
 confirm = pyip.inputYesNo(prompt="Confirm? yes or no: ")
 if confirm == 'yes':

@@ -103,36 +103,56 @@ class Trade:
         try:
             margin = client.futures_change_margin_type(symbol=self.symbol, marginType='ISOLATED')
             print("All good. Margin sorted.")
-        except exceptions.BinanceAPIException:
-            print("All good. Margin sorted.")
-
-        leverage = client.futures_change_leverage(
-            symbol = self.symbol,
-            leverage = self.lev
-        )
-
-class TrailingTrade(Trade) :
-    def __init__(self,side,percent_amount,symbol,entry,sl,tp_array, leverage):
-        super().__init__(side,percent_amount,symbol,entry,sl, leverage)
-        self.sl = sl
-        self.tp=tp_array
-        if len(tp_array) == 0:
-            self.tp_array[0]=1.0163*entry
-            self.callback_rate=1.6
-        else:
-            self.callback_rate = self.calculate_callback()
-        self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
-        
+        except exceptions.BinanceAPIException as e:
+            print("Error")
+            print(e)
+        try:
+            leverage = client.futures_change_leverage(
+                symbol = self.symbol,
+                leverage = self.lev
+            )
+        except exceptions.BinanceAPIException as e:
+            print("Could not set leverage")
+            print(e)
+#this is what i would consider to be a low risk trade
+class TrailingScalp(Trade) :
+    def __init__(self,side,percent_amount,symbol,entry, leverage):
+        super().__init__(side,percent_amount,symbol,entry, leverage)
+        if self.side=='BUY':
+            self.tp_trigger=1.008*entry
+            self.sl=0.984*entry
+            self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
+        elif self.side=='SELL':
+            self.tp_trigger=0.992*entry
+            self.sl=1.008*entry
+            self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
+        self.callback_rate=0.8
+        #self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
 
     def setup_trade(self):
-        self.create_entry_order()
-        self.set_trailing_stop()
+        try:
+            self.create_entry_order()
+            print('Created entry order.')
+        except exceptions.BinanceAPIException as e:
+            print('Could not create entry order.')
+            print(e)
+
+        try:
+            self.set_trailing_stop()
+            print('Set traling take profit')
+        except exceptions.BinanceAPIException as e:
+            print('Could not set tp order.')
+            print(e)
+
         try:
             self.create_sl()
-            print(f'Trailing SL set at {self.sl_callback_rate} from entry.')
+            print(f'SL set at {self.sl}.')
         except exceptions.BinanceAPIException as e:
-            print('Could not set SL')
+            print('Could not set SL, trying to lower precision to 2 dec points')
             print(e)
+            self.sl= float( "{:.{prec}f}".format( self.sl, prec=2 ))
+            print("new sl:", self.sl)
+            self.create_sl()
 
     def set_trailing_stop(self):
         take_profit_trail = client.futures_create_order(
@@ -140,18 +160,27 @@ class TrailingTrade(Trade) :
             side = self.sl_side,
             type = 'TRAILING_STOP_MARKET',
             quantity = self.amount,
-            activationPrice = self.tp[0],
+            activationPrice = self.tp_trigger,
             reduceOnly = "true",
             callbackRate = self.callback_rate
+    )
+    def create_sl(self):
+        sl = client.futures_create_order(
+            newClientOrderId = self.sl_id,
+            symbol = self.symbol,
+            side = self.sl_side,
+            type = 'STOP_MARKET',
+            stopPrice=self.sl,
+            closePosition="true"
         )
-    
-    def calculate_callback(self):
-        percentage_differences = []
-        n = len(self.tp)
-        for i in range(1,n):
-            diff = 1-(self.tp[i-1]/self.tp[i])
-            percentage_differences.append(diff*100)
-        return abs(round(statistics.mean(percentage_differences),1))
+        
+    # def calculate_callback(self):
+    #     percentage_differences = []
+    #     n = len(self.tp)
+    #     for i in range(1,n):
+    #         diff = 1-(self.tp[i-1]/self.tp[i])
+    #         percentage_differences.append(diff*100)
+    #     return abs(round(statistics.mean(percentage_differences),1))
 
 class SupResTrade(Trade):
     def __init__(self,side,percent_amount,symbol,entry,sup,res, leverage):
