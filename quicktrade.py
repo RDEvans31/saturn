@@ -2,6 +2,7 @@ import user
 import time
 import json
 import trader
+import pandas as pd
 import pyinputplus as pyip
 from binance import exceptions
 
@@ -31,7 +32,6 @@ def decide_side(string):
     elif string == 's':
         return 'SELL'
 
-
 my_account = user.User()
 
 print('Enter trade')
@@ -52,6 +52,7 @@ leverage = int(input("Enter leverage for trade: "))
 
 trade = trader.TrailingScalp(side = side,percent_amount = fraction_to_trade,symbol = symbol,entry = entry, leverage = leverage)
 print(trade.__dict__)
+
 confirm = pyip.inputYesNo(prompt="Confirm? yes or no: ")
 if confirm == 'yes':
     trade.setup_trade()

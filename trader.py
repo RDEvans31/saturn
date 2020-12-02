@@ -1,14 +1,22 @@
-
-import enum
 import user
 import time
 import statistics
+from decimal import Decimal
 from binance import exceptions
 from datetime import datetime
+import sys
 
 account = user.User()
 client = account.client
 fib_values=[0.236,0.382,0.5,0.618,0.786]
+
+def format_tp(tp_array,precision):
+    return list(map(lambda x: float( "{:.{prec}f}".format(x, prec=precision )),tp_array))
+
+def round_down(n):
+    d=Decimal(str(n))
+    no_of_decimal_places=-1*d.as_tuple().exponent
+    return round(n,no_of_decimal_places-1)
 
 #client = Client('uuMkEps4tMUnkj0IJpDkzJRilyzylb0ajLpvQC1a9aad5X9hKSOcNLcRkXbNPcKE', 'VBmJ8JBeLglFIO3eT83lwKsAdI0PowjUf95EAlUoKiKbMf9aIQW6eO0CexXEq6su')
 # client.API_URL = 'https://testnet.binance.vision/api' 
@@ -43,10 +51,13 @@ class Trade:
         self.lev = leverage
 
         self.set_leverage()
+
+        self.trade_capital=percent_amount*account.futures_account.usdt_balance*leverage
         
         precision = list(filter(lambda x : x['symbol'] == self.symbol,client.futures_exchange_info()['symbols']))[0]['quantityPrecision']
-        self.amount = float( "{:.{prec}f}".format( (percent_amount*account.futures_account.usdt_balance*leverage)/entry, prec=precision ))
-        
+        self.amount = float( "{:.{prec}f}".format( (self.trade_capital)/entry, prec=precision ))
+        self.worst_case_amount=0
+        self.tp_trigger=[]
         
         # self.entered = self.entry_filled_check()
         # self.structure_active = self.is_structure_active()
@@ -66,16 +77,27 @@ class Trade:
                     timeInForce = 'GTC',
                 )
             else: 
-                entry_order = client.futures_create_order(
-                    newClientOrderId = self.entry_id,
-                    symbol = self.symbol,
-                    side = self.side,
-                    type = 'STOP',
-                    quantity = self.amount,
-                    price = self.entry,
-                    stopPrice = self.entry,
-                    timeInForce = 'GTC',
-                )
+                try:
+                    entry_order = client.futures_create_order(
+                        newClientOrderId = self.entry_id,
+                        symbol = self.symbol,
+                        side = self.side,
+                        type = 'STOP',
+                        quantity = self.amount,
+                        price = self.entry,
+                        stopPrice = self.entry,
+                        timeInForce = 'GTC',
+                    )
+                except:
+                    entry_order = client.futures_create_order(
+                        newClientOrderId = self.entry_id,
+                        symbol = self.symbol,
+                        side = self.side,
+                        type = 'LIMIT',
+                        quantity = self.amount,
+                        price = self.entry,
+                        timeInForce = 'GTC',
+                    )
         elif self.side == 'SELL':
             if current_price <= self.entry:
                 entry_order = client.futures_create_order(
@@ -88,16 +110,27 @@ class Trade:
                     timeInForce = 'GTC',
                 )
             else: 
-                entry_order = client.futures_create_order(
-                    newClientOrderId = self.entry_id,
-                    symbol = self.symbol,
-                    side = self.side,
-                    type = 'STOP',
-                    quantity = self.amount,
-                    price = self.entry,
-                    stopPrice = self.entry,
-                    timeInForce = 'GTC',
-                )
+                try:
+                    entry_order = client.futures_create_order(
+                        newClientOrderId = self.entry_id,
+                        symbol = self.symbol,
+                        side = self.side,
+                        type = 'STOP',
+                        quantity = self.amount,
+                        price = self.entry,
+                        stopPrice = self.entry,
+                        timeInForce = 'GTC',
+                    )
+                except:
+                    entry_order = client.futures_create_order(
+                        newClientOrderId = self.entry_id,
+                        symbol = self.symbol,
+                        side = self.side,
+                        type = 'LIMIT',
+                        quantity = self.amount,
+                        price = self.entry,
+                        timeInForce = 'GTC',
+                    )
 
     def set_leverage(self):
         try:
@@ -114,19 +147,28 @@ class Trade:
         except exceptions.BinanceAPIException as e:
             print("Could not set leverage")
             print(e)
+    def calculate_worst_case(self):
+        amount_lost=float(self.worst_case_amount-self.trade_capital)
+        percentage_loss=float(100*((self.worst_case_amount/self.trade_capital)-1))
+        output=("Worst case: {0}%=${1}").format(percentage_loss,amount_lost)
+        return output
+
 #this is what i would consider to be a low risk trade
 class TrailingScalp(Trade) :
     def __init__(self,side,percent_amount,symbol,entry, leverage):
         super().__init__(side,percent_amount,symbol,entry, leverage)
         if self.side=='BUY':
-            self.tp_trigger=1.008*entry
-            self.sl=0.984*entry
+            self.tp_trigger=[1.005*entry,1.016*entry]
+            self.sl=0.992*entry
             self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
         elif self.side=='SELL':
-            self.tp_trigger=0.992*entry
+            self.tp_trigger=[0.995*entry,0.984*entry]
             self.sl=1.008*entry
             self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
-        self.callback_rate=0.8
+        self.tp_trigger=format_tp(self.tp_trigger,5)
+        self.callback_rate=0.1
+        self.sl_callback_rate=0.8
+        self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
         #self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
 
     def setup_trade(self):
@@ -136,42 +178,87 @@ class TrailingScalp(Trade) :
         except exceptions.BinanceAPIException as e:
             print('Could not create entry order.')
             print(e)
-
+            print("stopping")
+            sys.exit()
+        
         try:
-            self.set_trailing_stop()
+            self.set_trailing_tp()
             print('Set traling take profit')
         except exceptions.BinanceAPIException as e:
             print('Could not set tp order.')
             print(e)
-
+            try:
+                self.tp_trigger=format_tp(self.tp_trigger,3)
+                print("New tp:",self.tp_trigger)
+                self.set_trailing_tp()
+            except exceptions.BinanceAPIException as e2:
+                print(e2)
+                self.tp_trigger=format_tp(self.tp_trigger,1)
+                print("New tp:",self.tp_trigger)
+                self.set_trailing_tp()
+        # try:
+        #     self.create_sl()
+        #     print(f'SL set at {self.sl}.')
+        # except exceptions.BinanceAPIException as e:
+        #     print('Could not set SL, trying to lower precision to 2 dec points')
+        #     print(e)
+        #     try:
+        #         self.sl= float( "{:.{prec}f}".format( self.sl, prec=2 ))
+        #         print("new sl:", self.sl)
+        #         self.create_sl()
+        #     except exceptions.BinanceAPIException as e:
+        #         print(e)
+        #         print("Creating trailing sl.")
+        #         self.trailing_sl()
         try:
-            self.create_sl()
-            print(f'SL set at {self.sl}.')
+            print("Creating trailing sl.")
+            self.trailing_sl()
         except exceptions.BinanceAPIException as e:
-            print('Could not set SL, trying to lower precision to 2 dec points')
             print(e)
-            self.sl= float( "{:.{prec}f}".format( self.sl, prec=2 ))
-            print("new sl:", self.sl)
-            self.create_sl()
+        self.calculate_worst_case()
 
-    def set_trailing_stop(self):
-        take_profit_trail = client.futures_create_order(
+    def set_trailing_tp(self):
+        take_profit_trail_1 = client.futures_create_order(
+            symbol = self.symbol,
+            side = self.sl_side,
+            type = 'TRAILING_STOP_MARKET',
+            quantity = round_down(self.amount/2),
+            activationPrice = self.tp_trigger[0],
+            reduceOnly = "true",
+            callbackRate = self.callback_rate
+        )
+        print("Tp1 set.")
+        take_profit_trail_2 = client.futures_create_order(
             symbol = self.symbol,
             side = self.sl_side,
             type = 'TRAILING_STOP_MARKET',
             quantity = self.amount,
-            activationPrice = self.tp_trigger,
+            activationPrice = self.tp_trigger[1],
             reduceOnly = "true",
             callbackRate = self.callback_rate
-    )
+        )
+        print("Tp2 set.")
+
     def create_sl(self):
         sl = client.futures_create_order(
             newClientOrderId = self.sl_id,
             symbol = self.symbol,
             side = self.sl_side,
             type = 'STOP_MARKET',
+            quantity = self.amount,
             stopPrice=self.sl,
-            closePosition="true"
+            reduceOnly="true",
+        )
+    def trailing_sl(self):
+        sl_trail = client.futures_create_order(
+            newClientOrderId = self.sl_id,
+            symbol = self.symbol,
+            side = self.sl_side,
+            type = 'TRAILING_STOP_MARKET',
+            quantity = self.amount,
+            activationPrice = self.entry,
+            reduceOnly = "true",
+            callbackRate = self.sl_callback_rate
         )
         
     # def calculate_callback(self):
@@ -181,6 +268,11 @@ class TrailingScalp(Trade) :
     #         diff = 1-(self.tp[i-1]/self.tp[i])
     #         percentage_differences.append(diff*100)
     #     return abs(round(statistics.mean(percentage_differences),1))
+
+class FalseBreakout(Trade):
+    def __init__(self,side,percent_amount,symbol,entry,sup,res, leverage):
+        super().__init__(side,percent_amount,symbol,entry, leverage)
+        #check if hourly oen above support, 
 
 class SupResTrade(Trade):
     def __init__(self,side,percent_amount,symbol,entry,sup,res, leverage):
