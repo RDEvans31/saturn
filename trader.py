@@ -159,8 +159,9 @@ class Trade:
         return output
 
     def update_records(self):
+        td=pd.DataFrame()
         try:
-            trade_data=pd.read_csv('trade_data.csv')
+            trade_data=pd.read_csv('~/Documents/Python Programs/saturn/trade_data.csv')
             td=pd.DataFrame(trade_data)
         except:
             print('Could not read file.')
@@ -172,63 +173,64 @@ class Trade:
             )
         # print(new_trade)
         td=td.append(new_trade,ignore_index=True)
-        print(td)
-        td.to_csv('trade_data.csv',index=False)
+        td.to_csv('~/Documents/Python Programs/saturn/trade_data.csv',index=False)
+        trade_data=pd.read_csv('~/Documents/Python Programs/saturn/trade_data.csv')
+        print(trade_data)
 #this is what i would consider to be a low risk trade
 class TrailingScalp(Trade) :
     def __init__(self,side,percent_amount,symbol,entry, leverage):
         super().__init__(side,percent_amount,symbol,entry, leverage)
         if self.side=='BUY':
             self.tp_trigger=[1.005*entry,1.016*entry]
-            self.sl=0.992*entry
+            self.sl=0.984*entry
             self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
         elif self.side=='SELL':
             self.tp_trigger=[0.995*entry,0.984*entry]
-            self.sl=1.008*entry
+            self.sl=1.016*entry
             self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
         self.tp_trigger=format_tp(self.tp_trigger,5)
         self.callback_rate=0.1
-        self.sl_callback_rate=0.8
+        self.sl_callback_rate=1.6
         self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
         #self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
 
     def setup_trade(self):
-        # try:
-        #     self.create_entry_order()
-        #     print('Created entry order.')
-        # except exceptions.BinanceAPIException as e:
-        #     print('Could not create entry order.')
-        #     code=e.code
-        #     if code==-1111:
-        #         while code==-1111 and code!=0:
-        #             self.entry=round_one_place_down(self.entry)
-        #             try:
-        #                 self.create_entry_order()
-        #                 code=0
-        #                 print('Created entry order.')
-        #             except exceptions.BinanceAPIException as error:
-        #                 code=error.code
-        #     else:
-        #         print(self.__dict__)
-        #         print("stopping")
-        #         sys.exit()
+        try:
+            self.create_entry_order()
+            print('Created entry order.')
+        except exceptions.BinanceAPIException as e:
+            print('Could not create entry order.')
+            code=e.code
+            if code==-1111:
+                while code==-1111 and code!=0:
+                    self.entry=round_one_place_down(self.entry)
+                    try:
+                        self.create_entry_order()
+                        code=0
+                        print('Created entry order.')
+                    except exceptions.BinanceAPIException as error:
+                        code=error.code
+            else:
+                print(self.__dict__)
+                print("stopping")
+                sys.exit()
         
-        # try:
-        #     self.set_trailing_tp()
-        #     print('Set traling take profit')
-        # except exceptions.BinanceAPIException as e:
-        #     print('Could not set tp order.')
-        #     print(e)
-        #     try:
-        #         self.tp_trigger=format_tp(self.tp_trigger,3)
-        #         print("New tp:",self.tp_trigger)
-        #         self.set_trailing_tp()
-        #     except exceptions.BinanceAPIException as e2:
-        #         print(e2)
-        #         self.tp_trigger=format_tp(self.tp_trigger,1)
-        #         print("New tp:",self.tp_trigger)
-        #         self.set_trailing_tp()
-        self.update_records()
+        try:
+            self.set_trailing_tp()
+            print('Set traling take profit')
+        except exceptions.BinanceAPIException as e:
+            print('Could not set tp order.')
+            print(e)
+            try:
+                self.tp_trigger=format_tp(self.tp_trigger,3)
+                print("New tp:",self.tp_trigger)
+                self.set_trailing_tp()
+            except exceptions.BinanceAPIException as e2:
+                print(e2)
+                self.tp_trigger=format_tp(self.tp_trigger,1)
+                print("New tp:",self.tp_trigger)
+                self.set_trailing_tp()
+        
 # this
         # try:
         #     self.create_sl()
@@ -246,14 +248,13 @@ class TrailingScalp(Trade) :
         #         self.trailing_sl()
 # to here was not in originally
 
-        # try:
-        #     print("Creating trailing sl.")
-        #     self.trailing_sl()
-        # except exceptions.BinanceAPIException as e:
-        #     print(e)
+        try:
+            print("Creating trailing sl.")
+            self.trailing_sl()
+        except exceptions.BinanceAPIException as e:
+            print(e)
 
-        
-        self.calculate_worst_case()
+        self.update_records()
 
     def set_trailing_tp(self):
         take_profit_trail_1 = client.futures_create_order(
@@ -268,7 +269,7 @@ class TrailingScalp(Trade) :
         )
         print("Tp1 set.")
         take_profit_trail_2 = client.futures_create_order(
-            newClientOrderId = self.tp2,
+            newClientOrderId = self.tp2_id,
             symbol = self.symbol,
             side = self.sl_side,
             type = 'TRAILING_STOP_MARKET',
@@ -320,8 +321,8 @@ class BreakoutTrade():
         self.sup=support
         self.symbol = str(symbol)
         #self.fibs=self.calculate_fib_array() for further development
-        self.bullish_breakout=TrailingScalp('BUY',0.3,symbol=symbol,entry=self.res*1.005,leverage=20)
-        self.bearish_breakdown=TrailingScalp('SELL',0.3,symbol=symbol,entry=self.sup*0.995,leverage=20)
+        self.bullish_breakout=TrailingScalp('BUY',0.3,symbol=symbol,entry=self.res*1.01,leverage=20)
+        self.bearish_breakdown=TrailingScalp('SELL',0.3,symbol=symbol,entry=self.sup*0.99,leverage=20)
 
     def setup_trade(self):
         self.bullish_breakout.setup_trade()

@@ -1,6 +1,8 @@
 from binance.client import Client
 import json
 import time
+import pandas as pd
+from datetime import date
 #connected to actual binance account
 
 client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK', '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4') 
@@ -14,7 +16,17 @@ class User:
 
     def show(self):
         print('working')
-        self.futures_account.show()
+        self.futures_account.show() 
+    
+    def log_account_balance(self):
+        try:
+            log=pd.DataFrame(pd.read_csv('~/Documents/Python Programs/saturn/account_balance.csv'))
+            print(log)
+        except:
+            log=pd.DataFrame(columns=['Date','Balance'])
+        new_entry=pd.DataFrame([[date.today().strftime("%d/%m/%Y"),self.futures_account.usdt_balance]],columns=['Date','Balance'])
+        log=log.append(new_entry,ignore_index=True)
+        log.to_csv('~/Documents/Python Programs/saturn/account_balance.csv',index=False)
 
 class FuturesAccount:
     def __init__(self,client):
@@ -84,7 +96,8 @@ class Position:
         self.lev = int(posDict['leverage']) 
 
 
-# account = User()
+account = User()
+account.log_account_balance()
 # account.show()
 # for x in range(1,5):
 #     print("Updating")
