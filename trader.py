@@ -1,6 +1,7 @@
 import user
 import time
 import statistics
+import pandas as pd
 from decimal import Decimal
 from binance import exceptions
 from datetime import datetime
@@ -13,7 +14,7 @@ fib_values=[0.236,0.382,0.5,0.618,0.786]
 def format_tp(tp_array,precision):
     return list(map(lambda x: float( "{:.{prec}f}".format(x, prec=precision )),tp_array))
 
-def round_down(n):
+def round_one_place_down(n):
     d=Decimal(str(n))
     no_of_decimal_places=-1*d.as_tuple().exponent
     return round(n,no_of_decimal_places-1)
@@ -36,10 +37,13 @@ class Trade:
     def __init__(self,side,percent_amount,symbol,entry, leverage):        
         
         now = datetime.now()
+        self.trade_id=symbol+now.strftime("%d%m%Y_%H%M%S")
         self.entry = entry #entry price
         self.symbol = str(symbol)
-        self.entry_id = self.symbol+"entry"+now.strftime("%d%m%Y_%H%M%S")
-        self.sl_id = self.symbol+"stoploss"+now.strftime("%d%m%Y_%H%M%S")
+        self.entry_id = self.trade_id+"entry"
+        self.sl_id = self.trade_id+"stoploss"
+        self.tp1_id = self.trade_id+"tp1"
+        self.tp2_id =self.trade_id+"tp2"
         self.side = str(side)
 
         if self.side == 'BUY':
@@ -51,8 +55,8 @@ class Trade:
         self.lev = leverage
 
         self.set_leverage()
-
-        self.trade_capital=percent_amount*account.futures_account.usdt_balance*leverage
+        self.capital_risked=percent_amount*account.futures_account.usdt_balance
+        self.trade_capital=self.capital_risked*leverage
         
         precision = list(filter(lambda x : x['symbol'] == self.symbol,client.futures_exchange_info()['symbols']))[0]['quantityPrecision']
         self.amount = float( "{:.{prec}f}".format( (self.trade_capital)/entry, prec=precision ))
@@ -147,12 +151,29 @@ class Trade:
         except exceptions.BinanceAPIException as e:
             print("Could not set leverage")
             print(e)
+    
     def calculate_worst_case(self):
         amount_lost=float(self.worst_case_amount-self.trade_capital)
         percentage_loss=float(100*((self.worst_case_amount/self.trade_capital)-1))
         output=("Worst case: {0}%=${1}").format(percentage_loss,amount_lost)
         return output
 
+    def update_records(self):
+        try:
+            trade_data=pd.read_csv('trade_data.csv')
+            td=pd.DataFrame(trade_data)
+        except:
+            print('Could not read file.')
+            
+        
+        new_trade=pd.DataFrame(
+            data=[[self.trade_id,self.entry_id,self.sl_id,self.tp1_id,self.tp2_id,self.symbol,self.capital_risked,self.entry,self.sl,self.tp_trigger[0],self.tp_trigger[1],None,None]],
+            columns=['tradeID', 'entry_id', 'sl_id', 'tp1_id', 'tp2_id', 'symbol', 'risked_capital', 'entry_price', 'stoploss', 'tp1', 'tp2', 'net_profit', 'percentage_profit'],
+            )
+        # print(new_trade)
+        td=td.append(new_trade,ignore_index=True)
+        print(td)
+        td.to_csv('trade_data.csv',index=False)
 #this is what i would consider to be a low risk trade
 class TrailingScalp(Trade) :
     def __init__(self,side,percent_amount,symbol,entry, leverage):
@@ -172,30 +193,43 @@ class TrailingScalp(Trade) :
         #self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
 
     def setup_trade(self):
-        try:
-            self.create_entry_order()
-            print('Created entry order.')
-        except exceptions.BinanceAPIException as e:
-            print('Could not create entry order.')
-            print(e)
-            print("stopping")
-            sys.exit()
+        # try:
+        #     self.create_entry_order()
+        #     print('Created entry order.')
+        # except exceptions.BinanceAPIException as e:
+        #     print('Could not create entry order.')
+        #     code=e.code
+        #     if code==-1111:
+        #         while code==-1111 and code!=0:
+        #             self.entry=round_one_place_down(self.entry)
+        #             try:
+        #                 self.create_entry_order()
+        #                 code=0
+        #                 print('Created entry order.')
+        #             except exceptions.BinanceAPIException as error:
+        #                 code=error.code
+        #     else:
+        #         print(self.__dict__)
+        #         print("stopping")
+        #         sys.exit()
         
-        try:
-            self.set_trailing_tp()
-            print('Set traling take profit')
-        except exceptions.BinanceAPIException as e:
-            print('Could not set tp order.')
-            print(e)
-            try:
-                self.tp_trigger=format_tp(self.tp_trigger,3)
-                print("New tp:",self.tp_trigger)
-                self.set_trailing_tp()
-            except exceptions.BinanceAPIException as e2:
-                print(e2)
-                self.tp_trigger=format_tp(self.tp_trigger,1)
-                print("New tp:",self.tp_trigger)
-                self.set_trailing_tp()
+        # try:
+        #     self.set_trailing_tp()
+        #     print('Set traling take profit')
+        # except exceptions.BinanceAPIException as e:
+        #     print('Could not set tp order.')
+        #     print(e)
+        #     try:
+        #         self.tp_trigger=format_tp(self.tp_trigger,3)
+        #         print("New tp:",self.tp_trigger)
+        #         self.set_trailing_tp()
+        #     except exceptions.BinanceAPIException as e2:
+        #         print(e2)
+        #         self.tp_trigger=format_tp(self.tp_trigger,1)
+        #         print("New tp:",self.tp_trigger)
+        #         self.set_trailing_tp()
+        self.update_records()
+# this
         # try:
         #     self.create_sl()
         #     print(f'SL set at {self.sl}.')
@@ -210,25 +244,31 @@ class TrailingScalp(Trade) :
         #         print(e)
         #         print("Creating trailing sl.")
         #         self.trailing_sl()
-        try:
-            print("Creating trailing sl.")
-            self.trailing_sl()
-        except exceptions.BinanceAPIException as e:
-            print(e)
+# to here was not in originally
+
+        # try:
+        #     print("Creating trailing sl.")
+        #     self.trailing_sl()
+        # except exceptions.BinanceAPIException as e:
+        #     print(e)
+
+        
         self.calculate_worst_case()
 
     def set_trailing_tp(self):
         take_profit_trail_1 = client.futures_create_order(
+            newClientOrderId = self.tp1_id,
             symbol = self.symbol,
             side = self.sl_side,
             type = 'TRAILING_STOP_MARKET',
-            quantity = round_down(self.amount/2),
+            quantity=round_one_place_down(self.amount/2),
             activationPrice = self.tp_trigger[0],
             reduceOnly = "true",
             callbackRate = self.callback_rate
         )
         print("Tp1 set.")
         take_profit_trail_2 = client.futures_create_order(
+            newClientOrderId = self.tp2,
             symbol = self.symbol,
             side = self.sl_side,
             type = 'TRAILING_STOP_MARKET',
@@ -260,7 +300,7 @@ class TrailingScalp(Trade) :
             reduceOnly = "true",
             callbackRate = self.sl_callback_rate
         )
-        
+    
     # def calculate_callback(self):
     #     percentage_differences = []
     #     n = len(self.tp)
@@ -274,17 +314,21 @@ class FalseBreakout(Trade):
         super().__init__(side,percent_amount,symbol,entry, leverage)
         #check if hourly oen above support, 
 
-class SupResTrade(Trade):
-    def __init__(self,side,percent_amount,symbol,entry,sup,res, leverage):
-        super().__init__(side,percent_amount,symbol,entry, leverage)
-        self.res=res
-        self.sup=sup
-        self.fibs=self.calculate_fib_array
-        
-    
-    def calculate_fib_array(self):
-        delta=self.res-self.sup
-        return list(map(lambda x: self.sup+delta*x,fib_values))
+class BreakoutTrade():
+    def __init__(self,support,resistance,symbol):
+        self.res=resistance
+        self.sup=support
+        self.symbol = str(symbol)
+        #self.fibs=self.calculate_fib_array() for further development
+        self.bullish_breakout=TrailingScalp('BUY',0.3,symbol=symbol,entry=self.res*1.005,leverage=20)
+        self.bearish_breakdown=TrailingScalp('SELL',0.3,symbol=symbol,entry=self.sup*0.995,leverage=20)
+
+    def setup_trade(self):
+        self.bullish_breakout.setup_trade()
+        self.bearish_breakdown.setup_trade()
+    # def calculate_fib_array(self):
+    #     delta=self.res-self.sup
+    #     return list(map(lambda x: self.sup+delta*x,fib_values))
 
 
 class MonitoredTrade(Trade): 
