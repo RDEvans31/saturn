@@ -8,7 +8,7 @@ client=user.client
 
 def get_viable_trades():
     for symbol in symbols:
-        kline=client.get_historical_klines(symbol,Client.KLINE_INTERVAL_5MINUTE,'3 hours ago')
+        kline=client.get_historical_klines(symbol,Client.KLINE_INTERVAL_5MINUTE,'4 hours ago')
         highs=list(map(lambda x:x[2],kline))
         lows=list(map(lambda x:x[3],kline))
         top=float(max(highs))

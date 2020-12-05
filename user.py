@@ -15,7 +15,6 @@ class User:
         self.futures_account = FuturesAccount(self.client)
 
     def show(self):
-        print('working')
         self.futures_account.show() 
     
     def log_account_balance(self):
@@ -34,6 +33,15 @@ class User:
             log.to_csv('~/Documents/Python Programs/saturn/account_balance.csv',index=False)
         
         print('Account balance:', log['Balance'][len(log['Balance'])-1])
+    
+    def update_trade_data(self):
+        trade_data=pd.DataFrame(pd.read_csv('~/Documents/Python Programs/saturn/trade_data.csv'))
+        records=trade_data[['tradeID','entry_id','sl_id','tp1_id','tp2_id','symbol','entry_price','stoploss','tp1','tp2','net_profit','percentage_profit']]
+        for i in range(0,len(records)):
+            current_record=records.iloc[0]
+            #check if current record['net_profit'] is empty
+            current_record.iloc[i]
+        
 
 class FuturesAccount:
     def __init__(self,client):
@@ -105,6 +113,7 @@ class Position:
 
 account = User()
 account.log_account_balance()
+account.update_trade_data()
 # account.show()
 # for x in range(1,5):
 #     print("Updating")
