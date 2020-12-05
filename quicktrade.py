@@ -33,12 +33,14 @@ def decide_side(string):
 
 my_account = user.User()
 
-trade_type=pyip.inputInt(prompt='Trade type (1 for Breakout trade, 2 for TrailingScalp): ',min=1,max=2)
+trade_type=pyip.inputInt(prompt='Trade type (1 for Breakout, 2 for TrailingScalp): ',min=1,max=2)
 if trade_type==1:
     s = str(input('Symbol: '))
     r = float(input('Enter resistance: '))
     sup = float(input('Enter support: '))
-    trade=trader.BreakoutTrade(sup,r,s)
+    trade=trader.BreakoutScalp(sup,r,s)
+    print('Up: ',trade.bullish_breakout.__dict__)
+    print('Down: ',trade.bearish_breakdown.__dict__)
 elif trade_type==2:
     symbol = str(input('Symbol: '))
     current_price = float(list(filter(lambda x : x['symbol'] == symbol, user.client.get_all_tickers()))[0]['price'])

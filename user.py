@@ -19,14 +19,21 @@ class User:
         self.futures_account.show() 
     
     def log_account_balance(self):
+        last_date=-1
+        current_date=date.today().strftime("%d/%m/%Y")
         try:
             log=pd.DataFrame(pd.read_csv('~/Documents/Python Programs/saturn/account_balance.csv'))
-            print(log)
+            last_date=log['Date'][len(log['Date'])-1]
         except:
             log=pd.DataFrame(columns=['Date','Balance'])
-        new_entry=pd.DataFrame([[date.today().strftime("%d/%m/%Y"),self.futures_account.usdt_balance]],columns=['Date','Balance'])
-        log=log.append(new_entry,ignore_index=True)
-        log.to_csv('~/Documents/Python Programs/saturn/account_balance.csv',index=False)
+        
+        if len(log['Date']) !=0 and last_date != current_date:
+            print('Updating')
+            new_entry=pd.DataFrame([[current_date,self.futures_account.usdt_balance]],columns=['Date','Balance'])
+            log=log.append(new_entry,ignore_index=True)
+            log.to_csv('~/Documents/Python Programs/saturn/account_balance.csv',index=False)
+        
+        print('Account balance:', log['Balance'][len(log['Balance'])-1])
 
 class FuturesAccount:
     def __init__(self,client):

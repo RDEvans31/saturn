@@ -141,8 +141,8 @@ class Trade:
             margin = client.futures_change_margin_type(symbol=self.symbol, marginType='ISOLATED')
             print("All good. Margin sorted.")
         except exceptions.BinanceAPIException as e:
-            print("Error")
-            print(e)
+            if e.message !="No need to change margin type.":
+                print(e)
         try:
             leverage = client.futures_change_leverage(
                 symbol = self.symbol,
@@ -178,6 +178,89 @@ class Trade:
         print(trade_data)
 #this is what i would consider to be a low risk trade
 class TrailingScalp(Trade) :
+    def __init__(self,side,percent_amount,symbol,entry,sl, leverage):
+        super().__init__(side,percent_amount,symbol,entry, leverage)
+        if self.side=='BUY':
+            self.tp_trigger=[1.005*entry,None]
+        elif self.side=='SELL':
+            self.tp_trigger=[0.995*entry,None]
+
+        self.sl=sl
+        self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
+        self.tp2_id=None
+        self.callback_rate=0.1
+        self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
+        self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
+    
+    def set_trailing_tp(self):
+        take_profit_trail_1 = client.futures_create_order(
+            newClientOrderId = self.tp1_id,
+            symbol = self.symbol,
+            side = self.sl_side,
+            type = 'TRAILING_STOP_MARKET',
+            quantity=round_one_place_down(self.amount),
+            activationPrice = self.tp_trigger[0],
+            reduceOnly = "true",
+            callbackRate = self.callback_rate
+        )
+    
+    def setup_trade(self):
+        try:
+            self.create_entry_order()
+            print('Created entry order.')
+        except exceptions.BinanceAPIException as e:
+            print('Could not create entry order.')
+            code=e.code
+            if code==-1111:
+                while code==-1111 and code!=0:
+                    self.entry=round_one_place_down(self.entry)
+                    try:
+                        self.create_entry_order()
+                        code=0
+                        print('Created entry order.')
+                    except exceptions.BinanceAPIException as error:
+                        code=error.code
+            else:
+                print(self.__dict__)
+                print("stopping")
+                sys.exit()
+        
+        try:
+            self.set_trailing_tp()
+            print('Set traling take profit')
+        except exceptions.BinanceAPIException as e:
+            print('Could not set tp order.')
+            print(e)
+            try:
+                self.tp_trigger=format_tp(self.tp_trigger,3)
+                print("New tp:",self.tp_trigger)
+                self.set_trailing_tp()
+            except exceptions.BinanceAPIException as e2:
+                print(e2)
+                self.tp_trigger=format_tp(self.tp_trigger,1)
+                print("New tp:",self.tp_trigger)
+                self.set_trailing_tp()
+        try:
+            print("Creating trailing sl.")
+            self.trailing_sl()
+        except exceptions.BinanceAPIException as e:
+            print(e)
+
+        self.update_records()
+
+    def trailing_sl(self):
+        sl_trail = client.futures_create_order(
+            newClientOrderId = self.sl_id,
+            symbol = self.symbol,
+            side = self.sl_side,
+            type = 'TRAILING_STOP_MARKET',
+            quantity = self.amount,
+            activationPrice = self.entry,
+            reduceOnly = "true",
+            callbackRate = self.sl_callback_rate
+        )
+
+class TrailingSwing(Trade) :
     def __init__(self,side,percent_amount,symbol,entry, leverage):
         super().__init__(side,percent_amount,symbol,entry, leverage)
         if self.side=='BUY':
@@ -314,15 +397,28 @@ class FalseBreakout(Trade):
     def __init__(self,side,percent_amount,symbol,entry,sup,res, leverage):
         super().__init__(side,percent_amount,symbol,entry, leverage)
         #check if hourly oen above support, 
-
-class BreakoutTrade():
+class BreakoutScalp():
     def __init__(self,support,resistance,symbol):
         self.res=resistance
         self.sup=support
         self.symbol = str(symbol)
+        delta=self.res-self.sup
         #self.fibs=self.calculate_fib_array() for further development
-        self.bullish_breakout=TrailingScalp('BUY',0.3,symbol=symbol,entry=self.res*1.01,leverage=20)
-        self.bearish_breakdown=TrailingScalp('SELL',0.3,symbol=symbol,entry=self.sup*0.99,leverage=20)
+        self.bullish_breakout=TrailingScalp('BUY',0.3,symbol=symbol,entry=self.res+delta*0.1,sl=self.sup,leverage=20)
+        self.bearish_breakdown=TrailingScalp('SELL',0.3,symbol=symbol,entry=self.sup-delta*0.1,sl=self.res,leverage=20)
+
+    def setup_trade(self):
+        self.bullish_breakout.setup_trade()
+        self.bearish_breakdown.setup_trade()
+class BreakoutSwing():
+    def __init__(self,support,resistance,symbol):
+        self.res=resistance
+        self.sup=support
+        self.symbol = str(symbol)
+        delta=self.res=self.sup
+        #self.fibs=self.calculate_fib_array() for further development
+        self.bullish_breakout=TrailingSwing('BUY',0.3,symbol=symbol,entry=self.res+delta*0.1,leverage=20)
+        self.bearish_breakdown=TrailingSwing('SELL',0.3,symbol=symbol,entry=self.sup-delta*0.1,leverage=20)
 
     def setup_trade(self):
         self.bullish_breakout.setup_trade()
