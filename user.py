@@ -70,8 +70,10 @@ class User:
                     tp2_id=current_record['tp2_id']
                 else:
                     tp2_id=None
+                
                 entry_order=client.futures_get_order(symbol=symbol,origClientOrderId=entry_id)
                 entry_status=entry_order['status']
+                
                 if entry_status=='FILLED':
                     entered=True
                 elif entry_status=='CANCELED' or entry_status=='EXPIRED':
@@ -200,10 +202,8 @@ class Position:
         self.liq_price = float(posDict['liquidationPrice'])
         self.lev = int(posDict['leverage']) 
 
+account=User()
 
-account = User()
-account.log_account_balance()
-account.update_trade_data()
 # account.show()
 # for x in range(1,5):
 #     print("Updating")

@@ -1,13 +1,11 @@
 import user
-import time
-import statistics
 import pandas as pd
 from decimal import Decimal
 from binance import exceptions
 from datetime import datetime
 import sys
 
-account = user.User()
+account = user.account
 client = account.client
 fib_values=[0.236,0.382,0.5,0.618,0.786]
 
@@ -16,17 +14,18 @@ def format_tp(tp_array,precision):
         return list(map(lambda x: float( "{:.{prec}f}".format(x, prec=precision )),tp_array))
     except:
         print(tp_array)
+
+def format_sl(sl,precision):
+    try:
+        return float( "{:.{prec}f}".format(sl, prec=precision))
+    except:
+        print(sl)
+
 def round_one_place_down(n):
     d=Decimal(str(n))
     no_of_decimal_places=-1*d.as_tuple().exponent
     return round(n,no_of_decimal_places-1)
 
-#client = Client('uuMkEps4tMUnkj0IJpDkzJRilyzylb0ajLpvQC1a9aad5X9hKSOcNLcRkXbNPcKE', 'VBmJ8JBeLglFIO3eT83lwKsAdI0PowjUf95EAlUoKiKbMf9aIQW6eO0CexXEq6su')
-# client.API_URL = 'https://testnet.binance.vision/api' 
-# testnet url
-
-# from binance.websockets import BinanceSocketManager
-# from twisted.internet import reactor
 
 class Trade:
     def __init__(self,side,percent_amount,symbol,entry, leverage):        
@@ -55,6 +54,9 @@ class Trade:
         self.amount = float( "{:.{prec}f}".format( (self.trade_capital)/entry, prec=precision ))
         self.worst_case_amount=0
         self.tp_trigger=[]
+        self.entry_set=False
+        self.sl_set=False
+        self.tp_set=False
         
         # self.entered = self.entry_filled_check()
         # self.structure_active = self.is_structure_active()
@@ -73,6 +75,7 @@ class Trade:
                     price = self.entry,
                     timeInForce = 'GTC',
                 )
+                self.entry_set=True
             else: 
                 try:
                     entry_order = client.futures_create_order(
@@ -85,6 +88,7 @@ class Trade:
                         stopPrice = self.entry,
                         timeInForce = 'GTC',
                     )
+                    self.entry_set=True
                 except:
                     entry_order = client.futures_create_order(
                         newClientOrderId = self.entry_id,
@@ -95,6 +99,8 @@ class Trade:
                         price = self.entry,
                         timeInForce = 'GTC',
                     )
+                    self.entry_set=True
+
         elif self.side == 'SELL':
             if current_price <= self.entry:
                 entry_order = client.futures_create_order(
@@ -106,6 +112,7 @@ class Trade:
                     price = self.entry,
                     timeInForce = 'GTC',
                 )
+                self.entry_set=True
             else: 
                 try:
                     entry_order = client.futures_create_order(
@@ -118,6 +125,7 @@ class Trade:
                         stopPrice = self.entry,
                         timeInForce = 'GTC',
                     )
+                    self.entry_set=True
                 except:
                     entry_order = client.futures_create_order(
                         newClientOrderId = self.entry_id,
@@ -128,6 +136,7 @@ class Trade:
                         price = self.entry,
                         timeInForce = 'GTC',
                     )
+                    self.entry_set=True
 
     def set_leverage(self):
         try:
@@ -169,6 +178,25 @@ class Trade:
         td.to_csv('~/Documents/Python Programs/saturn/trade_data.csv',index=False)
         trade_data=pd.read_csv('~/Documents/Python Programs/saturn/trade_data.csv')
 
+    def cancel_trade(self):
+        open_trade_orders=[]
+        open_orders=list(map(lambda x: x['clientOrderId'],user.filter_by_symbol(symbol,client.futures_get_open_orders())))
+
+        open_trade_orders=list(filter(lambda x: self.order_in_trade(x), open_orders))
+        
+        try:
+            for order in open_trade_orders:
+                cancelled_order=client.futures_cancel_order(symbol=symbol,origClientOrderId=order)
+                print(order+" cancelled.")
+        except:
+            print("Could not cancel")
+
+    def order_in_trade(self,orderID):
+        if (orderID==self.entry_id) or (orderID==self.sl_id) or (orderID==self.tp1_id):
+            return True
+        else:
+            return False
+
 #this is what i would consider to be a low risk trade
 class TrailingScalp(Trade) :
     def __init__(self,side,percent_amount,symbol,entry,sl, leverage):
@@ -185,91 +213,47 @@ class TrailingScalp(Trade) :
         self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
         self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
     
-    def set_trailing_tp(self):
-        take_profit_trail_1 = client.futures_create_order(
-            newClientOrderId = self.tp1_id,
-            symbol = self.symbol,
-            side = self.sl_side,
-            type = 'TRAILING_STOP_MARKET',
-            quantity=round_one_place_down(self.amount),
-            activationPrice = self.tp_trigger[0],
-            reduceOnly = "true",
-            callbackRate = self.callback_rate
-        )
-
-    def trailing_sl(self):
-        sl_trail = client.futures_create_order(
-            newClientOrderId = self.sl_id,
-            symbol = self.symbol,
-            side = self.sl_side,
-            type = 'TRAILING_STOP_MARKET',
-            quantity = self.amount,
-            activationPrice = self.entry,
-            reduceOnly = "true",
-            callbackRate = self.sl_callback_rate
-        )
-
-    def setup_trade(self):
+    def set_trailing_tp(self,precision):
         try:
-            self.create_entry_order()
-            print('Created entry order.')
-        except exceptions.BinanceAPIException as e:
-            print('Could not create entry order.')
-            code=e.code
-            if code==-1111:
-                while code==-1111 and code!=0:
-                    self.entry=round_one_place_down(self.entry)
-                    try:
-                        self.create_entry_order()
-                        code=0
-                        print('Created entry order.')
-                    except exceptions.BinanceAPIException as error:
-                        code=error.code
-            else:
-                print(self.__dict__)
-                print("stopping")
-                sys.exit()
-        
-        try:
-            self.set_trailing_tp()
-            print('Set traling take profit')
-        except exceptions.BinanceAPIException as e:
-            print('Could not set tp order.')
-            print(e)
-            try:
-                self.tp_trigger=format_tp(self.tp_trigger,3)
-                print("New tp:",self.tp_trigger)
-                self.set_trailing_tp()
-            except exceptions.BinanceAPIException as e2:
-                print(e2)
-                self.tp_trigger=format_tp(self.tp_trigger,1)
-                print("New tp:",self.tp_trigger)
-                self.set_trailing_tp()
-        
-        try:
-            print("Creating trailing sl.")
-            self.trailing_sl()
+            take_profit_trail_1 = client.futures_create_order(
+                newClientOrderId = self.tp1_id,
+                symbol = self.symbol,
+                side = self.sl_side,
+                type = 'TRAILING_STOP_MARKET',
+                quantity=round_one_place_down(self.amount),
+                activationPrice = self.tp_trigger[0],
+                reduceOnly = "true",
+                callbackRate = self.callback_rate
+            )
+            self.tp_set=True
         except exceptions.BinanceAPIException as e:
             print(e)
+            # lower precision
+            self.tp_trigger=format_tp(self.tp_trigger,precision-1)
+            print("New tp:",self.tp_trigger)
+            self.set_trailing_tp(precision-1)
             
-        self.update_records()
 
-class TrailingSwing(Trade) :
-    def __init__(self,side,percent_amount,symbol,entry, leverage):
-        super().__init__(side,percent_amount,symbol,entry, leverage)
-        if self.side=='BUY':
-            self.tp_trigger=[1.005*entry,1.016*entry]
-            self.sl=0.984*entry
-            self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
-        elif self.side=='SELL':
-            self.tp_trigger=[0.995*entry,0.984*entry]
-            self.sl=1.016*entry
-            self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
-        self.tp_trigger=format_tp(self.tp_trigger,5)
-        self.callback_rate=0.1
-        self.sl_callback_rate=1.6
-        self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
-        #self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
+
+    def trailing_sl(self,precision):
+        try:
+            sl_trail = client.futures_create_order(
+                newClientOrderId = self.sl_id,
+                symbol = self.symbol,
+                side = self.sl_side,
+                type = 'TRAILING_STOP_MARKET',
+                quantity = self.amount,
+                activationPrice = self.entry,
+                reduceOnly = "true",
+                callbackRate = self.sl_callback_rate
+            )
+            self.sl_set=True
+        except exceptions.BinanceAPIException as e:
+            print(e)
+            # lower precision
+            self.sl=format_sl(self.sl,precision-1)
+            print("New tp:",self.sl)
+            self.trailing_sl(precision-1)
 
     def setup_trade(self):
         try:
@@ -288,89 +272,18 @@ class TrailingSwing(Trade) :
                     except exceptions.BinanceAPIException as error:
                         code=error.code
             else:
-                print(self.__dict__)
+                print("Could not create entry")
                 print("stopping")
                 sys.exit()
         
-        try:
-            self.set_trailing_tp()
-            print('Set traling take profit')
-        except exceptions.BinanceAPIException as e:
-            print('Could not set tp order.')
-            print(e)
-            try:
-                self.tp_trigger=format_tp(self.tp_trigger,3)
-                print("New tp:",self.tp_trigger)
-                self.set_trailing_tp()
-            except exceptions.BinanceAPIException as e2:
-                print(e2)
-                self.tp_trigger=format_tp(self.tp_trigger,1)
-                print("New tp:",self.tp_trigger)
-                self.set_trailing_tp()
+        print('Setting trailing take profit')
+        self.set_trailing_tp(5)
         
-        try:
-            print("Creating trailing sl.")
-            self.trailing_sl()
-        except exceptions.BinanceAPIException as e:
-            print(e)
-
+        print("Creating trailing sl.")
+        self.trailing_sl(5)
+        
         self.update_records()
 
-
-
-    def set_trailing_tp(self):
-        take_profit_trail_1 = client.futures_create_order(
-            newClientOrderId = self.tp1_id,
-            symbol = self.symbol,
-            side = self.sl_side,
-            type = 'TRAILING_STOP_MARKET',
-            quantity=round_one_place_down(self.amount/2),
-            activationPrice = self.tp_trigger[0],
-            reduceOnly = "true",
-            callbackRate = self.callback_rate
-        )
-        print("Tp1 set.")
-        take_profit_trail_2 = client.futures_create_order(
-            newClientOrderId = self.tp2_id,
-            symbol = self.symbol,
-            side = self.sl_side,
-            type = 'TRAILING_STOP_MARKET',
-            quantity = self.amount,
-            activationPrice = self.tp_trigger[1],
-            reduceOnly = "true",
-            callbackRate = self.callback_rate
-        )
-        print("Tp2 set.")
-
-    def create_sl(self):
-        sl = client.futures_create_order(
-            newClientOrderId = self.sl_id,
-            symbol = self.symbol,
-            side = self.sl_side,
-            type = 'STOP_MARKET',
-            quantity = self.amount,
-            stopPrice=self.sl,
-            reduceOnly="true",
-        )
-    def trailing_sl(self):
-        sl_trail = client.futures_create_order(
-            newClientOrderId = self.sl_id,
-            symbol = self.symbol,
-            side = self.sl_side,
-            type = 'TRAILING_STOP_MARKET',
-            quantity = self.amount,
-            activationPrice = self.entry,
-            reduceOnly = "true",
-            callbackRate = self.sl_callback_rate
-        )
-    
-    # def calculate_callback(self):
-    #     percentage_differences = []
-    #     n = len(self.tp)
-    #     for i in range(1,n):
-    #         diff = 1-(self.tp[i-1]/self.tp[i])
-    #         percentage_differences.append(diff*100)
-    #     return abs(round(statistics.mean(percentage_differences),1))
 class BreakoutScalp():
     def __init__(self,support,resistance,symbol):
         self.res=resistance
@@ -397,7 +310,7 @@ class ReversalScalp(Trade):
         self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
         self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
     
-    def static_tp(self):
+    def static_tp(self,precision):
         try:
             static_tp= client.futures_create_order(
                 newClientOrderId = self.tp1_id,
@@ -407,30 +320,45 @@ class ReversalScalp(Trade):
                 stopPrice=self.tp_trigger[0],
                 closePosition = "true",
             )
+            self.tp_set=True
         except exceptions.BinanceAPIException as e:
-            if not(e.code==-2021): #
+            if not(e.code==-2021): 
+                #usual error is that the precision is too high
+                self.tp_trigger=format_tp(self.tp_trigger,precision-1)
                 try:
-                    self.tp_trigger=format_tp(self.tp_trigger,3)
+                    self.tp_trigger=format_tp(self.tp_trigger,precision-1)
                     print("New tp:",self.tp_trigger)
-                    self.static_tp()
+                    self.static_tp(precision-1)
                 except exceptions.BinanceAPIException as e2:
                     print(e2)
-                    self.tp_trigger=format_tp(self.tp_trigger,1)
-                    print("New tp:",self.tp_trigger)
-                    self.static_tp()
+            else:
+                print(e)              
+    
+    def static_sl(self,precision):
+        try:
+            print("sl_id:", self.sl_id)
+            static_sl= client.futures_create_order(
+                newClientOrderId = self.sl_id,
+                symbol = self.symbol,
+                side = self.sl_side,
+                type = 'STOP_MARKET',
+                stopPrice=self.sl,
+                closePosition = "true",
+            )
+            self.sl_set=True
+        except exceptions.BinanceAPIException as e:
+            if not(e.code==-2021): 
+                print(e)
+                #implies error is that the precision is too high
+                self.sl=format_sl(self.sl,precision-1)
+                try:
+                    self.sl=format_sl(self.sl,precision-1)
+                    print("New sl:",self.sl)
+                    self.static_sl(precision-1)
+                except exceptions.BinanceAPIException as e2:
+                    print(e2)
             else:
                 print(e)
-                    
-    
-    def static_sl(self):
-        static_sl= client.futures_create_order(
-            newClientOrderId = self.sl_id,
-            symbol = self.symbol,
-            side = self.sl_side,
-            type = 'STOP_MARKET',
-            stopPrice=self.sl,
-            closePosition = "true",
-        )
 
     def setup_trade(self):
         try:
@@ -455,15 +383,17 @@ class ReversalScalp(Trade):
         
         
         print("Setting static tp")
-        self.static_tp()
+        self.static_tp(5)
 
-        try:
-            print("Creatng static sl")
-            self.static_sl()
-        except exceptions.BinanceAPIException as e:
-            print(e)
-
-        self.update_records()
+        
+        print("Setting static sl")
+        self.static_sl(5)
+        if self.entry_set and self.sl_set and self.tp_set:
+            self.update_records()
+        else:
+            print("Trade could not be setup, cancelling orders")
+            self.cancel_trade
+            
 
 
 
