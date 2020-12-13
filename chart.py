@@ -4,8 +4,7 @@ from binance.enums import *
 import user
 # import asyncio
 import numpy as np
-import matplotlib.pyplot as plt
-
+import pandas as pd
 
 client=user.client
 open_orders=client.futures_get_open_orders()
@@ -71,18 +70,18 @@ def get_viable_trades_for_symbol(symbol):
         #print("There are open orders for ", symbol)
         return 
 
-def get_peaks(closes):
+def get_peaks(data):
     p=[]
-    for i in range(0,len(closes)-1):
-        if closes[i]>closes[i+1] and closes[i]>closes[i-1]:
-            p.append(closes[i])
+    for i in range(0,len(data)-1):
+        if data[i]>data[i+1] and data[i]>data[i-1]:
+            p.append(data[i])
     return p
 
-def get_troughs(closes):
+def get_troughs(data):
     t=[]
-    for i in range(0,len(closes)-1):
-        if closes[i]<closes[i+1] and closes[i]<closes[i-1]:
-            t.append(closes[i])
+    for i in range(0,len(data)-1):
+        if data[i]<data[i+1] and data[i]<data[i-1]:
+            t.append(data[i])
     return t
 
 def get_stationary_points(symbol,t):
@@ -94,8 +93,3 @@ def get_stationary_points(symbol,t):
 
     return {'peaks': peaks, 'troughs': troughs}
     
-ys=get_stationary_points('ETHUSDT', '3 days ago')['peaks']
-xs=range(0,len(ys))
-
-fig, ax = plt.subplots()  # Create a figure containing a single axes.
-ax.plot(xs,ys)
