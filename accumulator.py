@@ -41,10 +41,12 @@ class Investment:
 
 pairs=[
         {
+            'asset' : 'XRP',
             'symbol':'XRPUSDT',
             'recurring_amount':15, #buy 15 dollars worth everytime this is run
         },
         {
+            'asset' : 'WAVES',
             'symbol': 'WAVESUSDT',
             'recurring_amount': 15,
         }

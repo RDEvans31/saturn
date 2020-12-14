@@ -395,9 +395,7 @@ class ReversalScalp(Trade):
             self.cancel_trade
             
 
-
-
-class FalseBreakout():
+class Reversal():
     def __init__(self,support,resistance,symbol):
         self.res=resistance
         self.sup=support

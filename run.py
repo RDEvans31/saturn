@@ -6,7 +6,9 @@ import pyinputplus as pyip
 from multiprocessing import Process
 import asyncio
 
-symbols=['XRPUSDT','ETHUSDT','WAVESUSDT','LTCUSDT','IOTAUSDT','OMGUSDT','ALGOUSDT','EOSUSDT']
+client=trader.client
+
+symbols=['XRPUSDT','ETHUSDT','WAVESUSDT','LTCUSDT','IOTAUSDT','OMGUSDT','ALGOUSDT']
 time_periods=['1 hour ago', '2 hours ago', '3 hours ago','4 hours ago']
 
 def get_viable_trades(symbol):
@@ -28,18 +30,20 @@ def setup_trades(trades):
                 sup=t[2]
                 time_period_index=t[3]
                 time_p=chart.time_periods[time_period_index]
-                if time_period_index >=0:
-                        print('Reversal')
-                        print(time_p)
-                        trade=trader.FalseBreakout(sup,res,symbol)
-                        print('Support reversal:',trade.support_reversal.__dict__)
-                        print('Resistance reversal: ',trade.resistance_reversal.__dict__)
-                else:
-                        print('Breakout')
-                        print(time_p)
-                        trade=trader.BreakoutScalp(sup,res,symbol)
-                        print(trade.bullish_breakout.__dict__)
-                        print(trade.bearish_breakdown.__dict__)
+                chart.identify_trend(symbol)
+                # if time_period_index==0:
+                #         print('Reversal')
+                #         print(time_p)
+                #         current_price = float(list(filter(lambda x : x['symbol'] == symbol, client.get_all_tickers()))[0]['price'])
+                #         trade=trader.Reversal(sup,res,symbol)
+                #         print('Support reversal:',trade.support_reversal.__dict__)
+                #         print('Resistance reversal: ',trade.resistance_reversal.__dict__)
+                # else:
+                #         print('Breakout')
+                #         print(time_p)
+                #         trade=trader.BreakoutScalp(sup,res,symbol)
+                #         print(trade.bullish_breakout.__dict__)
+                #         print(trade.bearish_breakdown.__dict__)
                         
                 confirm = pyip.inputYesNo(prompt="Confirm? yes or no: ")
                 #confirm=(trade.bullish_breakout.sl_callback_rate<=1) and (trade.bearish_breakdown.sl_callback_rate<=1)

@@ -27,6 +27,7 @@ def update_record(i,records,current_record,profit):
 class User:
     def __init__(self):
         self.client = client
+        self.spot_account=SpotAccount()
         self.futures_account = FuturesAccount(self.client)
 
     def show(self):
@@ -131,11 +132,20 @@ class User:
                 if cancelled:
                     records=update_record(i,records,current_record,'Cancelled')
                 
-                
-                    
-                
+class SpotAccount():
+    def  __init__(self):
+        self.balances=list(filter(lambda x: float(x['free'])!=0,client.get_account()['balances']))
+        self.cash_balance=float(client.get_asset_balance('USDT')['free'])
+        self.estimated_total_value=self.estimate_total_value()    
 
-class FuturesAccount:
+    def estimate_total_value(self):
+        total=self.cash_balance
+        for x in self.balances:
+            if x['asset']!='USDT':
+                total=total+float(x['free'])*float(list(filter(lambda ticker : ticker['symbol'] == x['asset']+'USDT', client.get_all_tickers()))[0]['price'])
+        return total
+
+class FuturesAccount: 
     def __init__(self,client):
 
         open_orders = []
