@@ -41,6 +41,11 @@ class Investment:
 
 pairs=[
         {
+            'asset' : 'SXP',
+            'symbol':'SXPUSDT',
+            'recurring_amount':15,
+        },
+        {
             'asset' : 'XRP',
             'symbol':'XRPUSDT',
             'recurring_amount':15, #buy 15 dollars worth everytime this is run
@@ -62,7 +67,8 @@ for currency in pairs:
         quantity=lower_precision(currency['recurring_amount']/price, 5)
     # print(symbol,quantity,price)
     
-    submit_order(symbol,quantity,5)
+    order=submit_order(symbol,quantity,5)
+    print(order)
 
 
 
