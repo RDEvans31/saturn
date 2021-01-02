@@ -1,14 +1,30 @@
 import asyncio
 from binance.client import Client
-from binance.enums import *
+import ccxt
+import requests
 import user
+import statistics
+import time
 import numpy as np
 import pandas as pd
 
 client=user.client
 open_orders=client.futures_get_open_orders()
-time_periods=['1 hour ago', '2 hours ago', '3 hours ago','4 hours ago']
 
+taapi_key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InJvYmVydC5kLmV2YW5zMzEwMEBnbWFpbC5jb20iLCJpYXQiOjE2MDk1OTQwOTEsImV4cCI6NzkxNjc5NDA5MX0.8eaue13S_zhya0TS2mATlmI5SKQOM5ThEOPjzcQWg0g'
+
+binance = ccxt.binance({
+    'apiKey': 'HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK',
+    'secret': '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4',
+    'timeout': 30000,
+    'enableRateLimit': True,
+})
+
+def convert_to_milliseconds(h): #enter time in hours
+    return h*3600*1000
+
+def get_current_time(exchange):
+    return exchange.fetch_time()
 
 # returns true if there are no more open orders for 
 def symbol_open_orders(symbol):
@@ -18,65 +34,21 @@ def symbol_open_orders(symbol):
     else:
         return False
 
-def get_5min_klines(s,t):
-    data=[]
-    print("Getting klines for", s, "in time period ",t)
-    try:
-        data = client.get_historical_klines(s,Client.KLINE_INTERVAL_5MINUTE,t)
-    except Exception as e:
-        print(e)
-    return data
+# takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
+def get_closes(kline): 
+    timestamps=list(map(lambda x: x[0], kline))
+    timestamp_hr=np.array(list(map(lambda x: (x-timestamps[0])/3600000, timestamps)),dtype=float)
+    closes=np.array(list(map(lambda x: x[4], kline)),dtype=float)
 
-def get_1hr_klines(s,t):
-    data=[]
-    print("Getting klines for", s, "in time period ",t)
-    try:
-        data = client.get_historical_klines(s,Client.KLINE_INTERVAL_1HOUR,t)
-    except Exception as e:
-        print(e)
-    return data
+    return pd.DataFrame({'timestamp':timestamp_hr,'close':closes})
 
-def get_4hr_klines(s,t):
-    data=[]
-    print("Getting klines for", s, "in time period ",t)
-    try:
-        data = client.get_historical_klines(s,Client.KLINE_INTERVAL_4HOUR,t)
-    except Exception as e:
-        print(e)
-    return data
-
-def get_day_klines(s,t):
-    data=[]
-    print("Getting klines for", s, "in time period ",t)
-    try:
-        data = client.get_historical_klines(s,Client.KLINE_INTERVAL_1DAY,t)
-    except Exception as e:
-        print(e)
-    return data
+#these all rely on the above functions
 
 def get_viable_trades_for_symbol(symbol):
     print('Checking:', symbol)
     if symbol_open_orders(symbol):
         trade_found=False
-        i=len(time_periods)-1
-        while not(trade_found) and i>=0:
-            kline=(symbol,[])
-            try:
-                kline= get_5min_klines(symbol,time_periods[i])
-            except:
-                print(symbol, ": Could not get", time_periods[i] ,"klines")
-            if len(kline[1])>0:
-                
-                highs=list(map(lambda x:x[2],kline))
-                lows=list(map(lambda x:x[3],kline))
-                top=float(max(highs))
-                bottom=float(min(lows))
-                if bottom>top*0.98 and bottom<top*0.995:
-                    trade=(symbol,top,bottom,i)
-                    trade_found=True 
-                    #print('Trade found.')
-                else:
-                    i=i-1
+
         if trade_found:
             return trade
         else:
@@ -88,52 +60,52 @@ def get_viable_trades_for_symbol(symbol):
 
 def get_peaks(data):
     if len(data)>0:
-        closes=get_closes(data)
+        close_prices=get_closes(data)
         peaks=[]
         for i in range(1,len(data)-1):
-            if closes[i]>closes[i+1] and closes[i]>closes[i-1]:
-                peaks.append((data[i][0],closes[i]))
-    
-        return peaks
+            current_series=close_prices.iloc[i]
+            if current_series["close"]>close_prices.iloc[i+1]["close"] and current_series["close"]>close_prices.iloc[i-1]["close"]:
+                peaks.append([current_series["timestamp"],current_series["close"]]) #appends timestamp and price
+        peaks_df=pd.DataFrame(data=peaks,columns=["timestamp","close"])
+        return peaks_df
     else:
         return None
 
 def get_troughs(data):
     if len(data)>0:
-        closes=get_closes(data)
+        close_prices=get_closes(data)
         troughs=[]
-        
         for i in range(1,len(data)-1):
-            if closes[i]<closes[i+1] and closes[i]<closes[i-1]:
-                troughs.append((data[i][0],closes[i]))
-
-        return troughs
+            current_series=close_prices.iloc[i]
+            if current_series["close"]<close_prices.iloc[i+1]["close"] and current_series["close"]<close_prices.iloc[i-1]["close"]:
+                troughs.append([current_series["timestamp"],current_series["close"]]) #appends timestamp and price
+        troughs_df=pd.DataFrame(data=troughs,columns=["timestamp","close"])
+        return troughs_df
     else:
         return None
 
-def get_stationary_points(interval,symbol,t):
+#not fucntional
+def get_stationary_points(interval,symbol):
     kline=None
     peaks=None
     troughs=None
-    if interval=='1 hr':
-        kline=get_1hr_klines(symbol,t)
-    elif interval=='4 hr':
-        kline=get_4hr_klines(symbol,t)
-    elif interval=='1 day':
-        kline=get_day_klines(symbol,t)
 
     if kline!=None:
         
         peaks=get_peaks(kline)
         troughs=get_troughs(kline)
+    
+    stationary_points=pd.concat([peaks,troughs])
+    stationary_points.sort_values(by=["timestamp"],inplace=True)
 
-    return {'peaks': peaks,'troughs': troughs}
+    return stationary_points
     
 def identify_trend(symbol):
-    closes=get_closes(get_1hr_klines(symbol,'1 day ago'))
+    time=binance.fetch_time()
+    closes=get_closes(binance.fetchOHLCV(symbol,'1h',time-convert_to_milliseconds(24)))
 
-    y=np.array(closes['closes'],dtype=float)
-    x=np.array(closes['timestamps'],dtype=float)
+    y=np.array(closes['close'],dtype=float)
+    x=np.array(closes['timestamp'],dtype=float)
 
     dataframe=pd.DataFrame({'time':x,'price':y})
     print(dataframe)
@@ -145,11 +117,69 @@ def identify_trend(symbol):
     if m<0.8:
         return 'BEAR'
 
-def get_closes(kline):
-    timestamps=list(map(lambda x: x[0], kline))
-    timestamp_hr=list(map(lambda x: (x-timestamps[0])/3600000, timestamps))
-    closes=list(map(lambda x: x[4], kline))
+def get_horizontal_lines(dataframe): #input dataframe comntaining peaks/troughs or both
+    # rounding closing prices
+    sup=dataframe["close"].max()
+    inf=dataframe["close"].min()
+    if dataframe["close"].min() < 1:   
+        base=round((sup-inf)*0.05,2)
+    else:
+        base=round((sup-inf)*0.05)
+    round_func=np.vectorize(lambda x: round(x))
+    possible_lines=np.linspace(inf,sup, num=int((round(sup)-round(inf))/base))
+    rounded_lines=round_func(possible_lines)
+    #for each of the closes, find the nearest possible rounded line, add 1 to the counter for that line
+    # initialising empty accumulator
+    accumulator = np.zeros(len(rounded_lines),dtype=int)
+    for close in dataframe["close"]:
+        closest_line=min(rounded_lines,key=lambda x: abs(x-close))
+        index=np.where(rounded_lines == closest_line)
+        accumulator[index]=accumulator[index]+1
+    accumulator_price_table=pd.DataFrame({'price':rounded_lines,'votes':accumulator})
+    accumulator_price_table.sort_values(by=["votes"],ascending=False, inplace=True)
 
-    return {'timestamps':timestamp_hr,'closes':closes}
+def get_ma(symbol,window):
+    timestamp=client._get_earliest_valid_timestamp(symbol,'1d') #using daily for now, gets earliest timestamp
+    kline=binance.fetchOHLCV(symbol,'1d')
+    openings=list(map(lambda x: float(x[1]),kline))
+    moving_averages=[]
+    for i in range(window,len(openings)):
+        averaging_list=openings[i-window:i]
+        new_average=statistics.mean(averaging_list)
+        moving_averages.append(new_average)
+    return moving_averages
 
-identify_trend('ETHUSDT')
+def get_support(symbol):
+    stationary_points=get_stationary_points('4 hr',symbol,'2 weeks ago')
+    get_horizontal_lines(stationary_points)
+    
+def get_macd(symbol): #takes in candlestick data returns latest 3 macd values
+    endpoint = f"https://api.taapi.io/macdfix"
+    macd=[]
+    # n=len(data)
+    for i in range(2,-1,-1):
+        parameters = {
+        'secret': taapi_key,
+        'exchange': 'binance',
+        'symbol': symbol,
+        'interval': '1h',
+        'backtrack': str(i),
+        }
+        # price_list=data[0:i]
+        # parameters = {
+        #     'secret': taapi_key,
+        #     'candles': price_list,
+        # } 
+        response = requests.get(url = endpoint, params = parameters)
+        result=response.json()
+        print(result)
+        time.sleep(60)
+        macd.append(result['valueMACDHist'])
+    print(macd)
+
+# since_time=get_current_time(binance)-convert_to_milliseconds(2)
+# candles=binance.fetchOHLCV('LINK/USDT','1h',since=since_time)
+# print(candles)
+get_macd()
+# identify_trend('ETHUSDT')
+# get_support('XRPUSDT')

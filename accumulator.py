@@ -11,12 +11,18 @@ client=user.client
 def lower_precision(n,prec):
     return float( "{:.{prec}f}".format(n, prec=prec-1))
 
-def submit_order(symbol,quantity,prec):
+def submit_order(symbol,testprice,quantity,prec):
     print((symbol,quantity,price,prec))
-    new_price=None
     order=None
     try:
-        return client.order_market_buy(
+        
+        # order=client.create_test_order(
+        #     symbol=symbol,
+        #     side='BUY',
+        #     type='MARKET',
+        #     quantity=quantity,
+        # )
+        order=client.order_market_buy(
             symbol=symbol,
             quantity=quantity,
             )
@@ -25,6 +31,10 @@ def submit_order(symbol,quantity,prec):
         if e.code == -1111:
             new_price=lower_precision(price,prec)
             return submit_order(symbol,quantity,prec-1)
+
+        if e.code == -1013: #quantity is below this notional
+            new_quantity=quantity*1.05
+            return submit_order(symbol,testprice,new_quantity,prec)
         # elif e.code == -1013:
         #     new_quantity = lower_precision(quantity,prec)
         #     submit_order(symbol,quantity,new_price,prec-1)
@@ -43,17 +53,17 @@ pairs=[
         {
             'asset' : 'SXP',
             'symbol':'SXPUSDT',
-            'recurring_amount':15,
+            'recurring_amount':10,
         },
-        {
-            'asset' : 'XRP',
-            'symbol':'XRPUSDT',
-            'recurring_amount':15, #buy 15 dollars worth everytime this is run
-        },
+        # {
+        #     'asset' : 'XRP',
+        #     'symbol':'XRPUSDT',
+        #     'recurring_amount':10, #buy 10 dollars worth everytime this is run
+        # },
         {
             'asset' : 'WAVES',
             'symbol': 'WAVESUSDT',
-            'recurring_amount': 15,
+            'recurring_amount': 10,
         }
     ]
 for currency in pairs:
@@ -67,7 +77,7 @@ for currency in pairs:
         quantity=lower_precision(currency['recurring_amount']/price, 5)
     # print(symbol,quantity,price)
     
-    order=submit_order(symbol,quantity,5)
+    order=submit_order(symbol,price,quantity,5)
     print(order)
 
 

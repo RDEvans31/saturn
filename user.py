@@ -142,7 +142,9 @@ class SpotAccount():
         total=self.cash_balance
         for x in self.balances:
             if x['asset']!='USDT':
-                total=total+float(x['free'])*float(list(filter(lambda ticker : ticker['symbol'] == x['asset']+'USDT', client.get_all_tickers()))[0]['price'])
+                filtered_ticker=list(filter(lambda ticker : ticker['symbol'] == x['asset']+'USDT', client.get_all_tickers()))
+                if len(filtered_ticker)>0:
+                    total=total+float(x['free'])*float(filtered_ticker[0]['price'])
         return total
 
 class FuturesAccount: 
