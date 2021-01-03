@@ -3,6 +3,7 @@ import pandas as pd
 from decimal import Decimal
 from binance import exceptions
 from datetime import datetime
+import math
 import sys
 
 account = user.account
@@ -28,7 +29,7 @@ def round_one_place_down(n):
 
 
 class Trade:
-    def __init__(self,side,percent_amount,symbol,entry, leverage):        
+    def __init__(self,side,symbol,entry,sl):        
         
         now = datetime.now()
         self.side = str(side)
@@ -38,21 +39,31 @@ class Trade:
             self.sl_side = 'BUY'
         self.trade_id=self.side+"_"+symbol+"_"+now.strftime("%d%m%Y_%H%M%S")
         self.entry = entry #entry price
+        self.sl=sl
         self.symbol = str(symbol)
         self.entry_id = self.trade_id+"entry"
         self.sl_id = self.trade_id+"stoploss"
         self.tp1_id = self.trade_id+"tp1"
         self.tp2_id =self.trade_id+"tp2"      
         
-        self.lev = leverage
+        total_balance=account.futures_account.usdt_balance
+        proposed_amount=0.01*(total_balance)/abs(self.entry-self.sl)
+        capital_risked=round(0.1*total_balance)
+        self.leverage=math.floor(proposed_amount/(capital_risked*self.entry))
+        
+
+        #should check whether there is enough free
+
+
+        
 
         self.set_leverage()
-        self.capital_risked=percent_amount*account.futures_account.usdt_balance
-        self.trade_capital=self.capital_risked*leverage
+        self.capital_risked=0.1*account.futures_account.usdt_balance
+        self.trade_capital=self.capital_risked*self.leverage
         
         precision = list(filter(lambda x : x['symbol'] == self.symbol,client.futures_exchange_info()['symbols']))[0]['quantityPrecision']
         self.amount = float( "{:.{prec}f}".format( (self.trade_capital)/entry, prec=precision ))
-        self.worst_case_amount=0
+        self.worst_case_amount=abs(self.entry*self.amount-self.sl*self.amount)
         self.tp_trigger=[]
         self.entry_set=False
         self.sl_set=False
@@ -197,239 +208,239 @@ class Trade:
         else:
             return False
 
-#this is what i would consider to be a low risk trade
-class TrailingScalp(Trade) :
-    def __init__(self,side,percent_amount,symbol,entry,sl, leverage):
-        super().__init__(side,percent_amount,symbol,entry, leverage)
-        if self.side=='BUY':
-            self.tp_trigger=[1.005*entry,None]
-        elif self.side=='SELL':
-            self.tp_trigger=[0.995*entry,None]
+# #this is what i would consider to be a low risk trade
+# class TrailingScalp(Trade) :
+#     def __init__(self,side,percent_amount,symbol,entry,sl, leverage):
+#         super().__init__(side,percent_amount,symbol,entry, leverage)
+#         if self.side=='BUY':
+#             self.tp_trigger=[1.005*entry,None]
+#         elif self.side=='SELL':
+#             self.tp_trigger=[0.995*entry,None]
 
-        self.sl=sl
-        self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
-        self.tp2_id=None
-        self.callback_rate=0.1
-        self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
-        self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
+#         self.sl=sl
+#         self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
+#         self.tp2_id=None
+#         self.callback_rate=0.1
+#         self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
+#         self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
     
-    def set_trailing_tp(self,precision):
-        try:
-            take_profit_trail_1 = client.futures_create_order(
-                newClientOrderId = self.tp1_id,
-                symbol = self.symbol,
-                side = self.sl_side,
-                type = 'TRAILING_STOP_MARKET',
-                quantity=round_one_place_down(self.amount),
-                activationPrice = self.tp_trigger[0],
-                reduceOnly = "true",
-                callbackRate = self.callback_rate
-            )
-            self.tp_set=True
-        except exceptions.BinanceAPIException as e:
-            print(e)
-            # lower precision
-            self.tp_trigger=format_tp(self.tp_trigger,precision-1)
-            print("New tp:",self.tp_trigger)
-            self.set_trailing_tp(precision-1)
+#     def set_trailing_tp(self,precision):
+#         try:
+#             take_profit_trail_1 = client.futures_create_order(
+#                 newClientOrderId = self.tp1_id,
+#                 symbol = self.symbol,
+#                 side = self.sl_side,
+#                 type = 'TRAILING_STOP_MARKET',
+#                 quantity=round_one_place_down(self.amount),
+#                 activationPrice = self.tp_trigger[0],
+#                 reduceOnly = "true",
+#                 callbackRate = self.callback_rate
+#             )
+#             self.tp_set=True
+#         except exceptions.BinanceAPIException as e:
+#             print(e)
+#             # lower precision
+#             self.tp_trigger=format_tp(self.tp_trigger,precision-1)
+#             print("New tp:",self.tp_trigger)
+#             self.set_trailing_tp(precision-1)
             
 
 
-    def trailing_sl(self,precision):
-        try:
-            sl_trail = client.futures_create_order(
-                newClientOrderId = self.sl_id,
-                symbol = self.symbol,
-                side = self.sl_side,
-                type = 'TRAILING_STOP_MARKET',
-                quantity = self.amount,
-                activationPrice = self.entry,
-                reduceOnly = "true",
-                callbackRate = self.sl_callback_rate
-            )
-            self.sl_set=True
-        except exceptions.BinanceAPIException as e:
-            print(e)
-            # lower precision
-            self.sl=format_sl(self.sl,precision-1)
-            print("New tp:",self.sl)
-            self.trailing_sl(precision-1)
+#     def trailing_sl(self,precision):
+#         try:
+#             sl_trail = client.futures_create_order(
+#                 newClientOrderId = self.sl_id,
+#                 symbol = self.symbol,
+#                 side = self.sl_side,
+#                 type = 'TRAILING_STOP_MARKET',
+#                 quantity = self.amount,
+#                 activationPrice = self.entry,
+#                 reduceOnly = "true",
+#                 callbackRate = self.sl_callback_rate
+#             )
+#             self.sl_set=True
+#         except exceptions.BinanceAPIException as e:
+#             print(e)
+#             # lower precision
+#             self.sl=format_sl(self.sl,precision-1)
+#             print("New tp:",self.sl)
+#             self.trailing_sl(precision-1)
 
-    def setup_trade(self):
-        try:
-            self.create_entry_order()
-            print('Created entry order.')
-        except exceptions.BinanceAPIException as e:
-            print('Could not create entry order.')
-            code=e.code
-            if code==-1111:
-                while code==-1111 and code!=0:
-                    self.entry=round_one_place_down(self.entry)
-                    try:
-                        self.create_entry_order()
-                        code=0
-                        print('Created entry order.')
-                    except exceptions.BinanceAPIException as error:
-                        code=error.code
-            else:
-                print("Could not create entry")
-                print("stopping")
-                sys.exit()
+#     def setup_trade(self):
+#         try:
+#             self.create_entry_order()
+#             print('Created entry order.')
+#         except exceptions.BinanceAPIException as e:
+#             print('Could not create entry order.')
+#             code=e.code
+#             if code==-1111:
+#                 while code==-1111 and code!=0:
+#                     self.entry=round_one_place_down(self.entry)
+#                     try:
+#                         self.create_entry_order()
+#                         code=0
+#                         print('Created entry order.')
+#                     except exceptions.BinanceAPIException as error:
+#                         code=error.code
+#             else:
+#                 print("Could not create entry")
+#                 print("stopping")
+#                 sys.exit()
         
-        print('Setting trailing take profit')
-        self.set_trailing_tp(5)
+#         print('Setting trailing take profit')
+#         self.set_trailing_tp(5)
         
-        print("Creating trailing sl.")
-        self.trailing_sl(5)
+#         print("Creating trailing sl.")
+#         self.trailing_sl(5)
         
-        self.update_records()
+#         self.update_records()
 
-class BreakoutScalp():
-    def __init__(self,support,resistance,symbol):
-        self.res=resistance
-        self.sup=support
-        self.symbol = str(symbol)
-        self.delta=self.res-self.sup
-        #self.fibs=self.calculate_fib_array() for further development
-        self.bullish_breakout=TrailingScalp('BUY',0.3,symbol=symbol,entry=self.res+self.delta*0.15,sl=self.sup,leverage=20)
-        self.bearish_breakdown=TrailingScalp('SELL',0.3,symbol=symbol,entry=self.sup-self.delta*0.15,sl=self.res,leverage=20)
+# class BreakoutScalp():
+#     def __init__(self,support,resistance,symbol):
+#         self.res=resistance
+#         self.sup=support
+#         self.symbol = str(symbol)
+#         self.delta=self.res-self.sup
+#         #self.fibs=self.calculate_fib_array() for further development
+#         self.bullish_breakout=TrailingScalp('BUY',0.3,symbol=symbol,entry=self.res+self.delta*0.15,sl=self.sup,leverage=20)
+#         self.bearish_breakdown=TrailingScalp('SELL',0.3,symbol=symbol,entry=self.sup-self.delta*0.15,sl=self.res,leverage=20)
 
-    def setup_trade(self):
-        self.bullish_breakout.setup_trade()
-        self.bearish_breakdown.setup_trade()
-class ReversalScalp(Trade):
-    def __init__(self,side,percent_amount,symbol,entry,tp,sl, leverage):
-        super().__init__(side,percent_amount,symbol,entry, leverage)
-        if self.side=='BUY':
-            self.tp_trigger=[tp]
-        elif self.side=='SELL':
-            self.tp_trigger=[tp]
+#     def setup_trade(self):
+#         self.bullish_breakout.setup_trade()
+#         self.bearish_breakdown.setup_trade()
+# class ReversalScalp(Trade):
+#     def __init__(self,side,percent_amount,symbol,entry,tp,sl, leverage):
+#         super().__init__(side,percent_amount,symbol,entry, leverage)
+#         if self.side=='BUY':
+#             self.tp_trigger=[tp]
+#         elif self.side=='SELL':
+#             self.tp_trigger=[tp]
 
-        self.sl=sl
-        self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
-        self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
-        self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
+#         self.sl=sl
+#         self.sl= float( "{:.{prec}f}".format( self.sl, prec=5 ))
+#         self.sl_callback_rate = round(abs(100*(1-(self.sl/self.entry))),1)
+#         self.worst_case_amount=self.sl*self.amount-self.entry*self.amount
     
-    def static_tp(self,precision):
-        try:
-            static_tp= client.futures_create_order(
-                newClientOrderId = self.tp1_id,
-                symbol = self.symbol,
-                side = self.sl_side,
-                type = 'TAKE_PROFIT_MARKET',
-                stopPrice=self.tp_trigger[0],
-                closePosition = "true",
-            )
-            self.tp_set=True
-        except exceptions.BinanceAPIException as e:
-            if not(e.code==-2021): 
-                #usual error is that the precision is too high
-                self.tp_trigger=format_tp(self.tp_trigger,precision-1)
-                try:
-                    self.tp_trigger=format_tp(self.tp_trigger,precision-1)
-                    print("New tp:",self.tp_trigger)
-                    self.static_tp(precision-1)
-                except exceptions.BinanceAPIException as e2:
-                    print(e2)
-            else:
-                print(e)              
+#     def static_tp(self,precision):
+#         try:
+#             static_tp= client.futures_create_order(
+#                 newClientOrderId = self.tp1_id,
+#                 symbol = self.symbol,
+#                 side = self.sl_side,
+#                 type = 'TAKE_PROFIT_MARKET',
+#                 stopPrice=self.tp_trigger[0],
+#                 closePosition = "true",
+#             )
+#             self.tp_set=True
+#         except exceptions.BinanceAPIException as e:
+#             if not(e.code==-2021): 
+#                 #usual error is that the precision is too high
+#                 self.tp_trigger=format_tp(self.tp_trigger,precision-1)
+#                 try:
+#                     self.tp_trigger=format_tp(self.tp_trigger,precision-1)
+#                     print("New tp:",self.tp_trigger)
+#                     self.static_tp(precision-1)
+#                 except exceptions.BinanceAPIException as e2:
+#                     print(e2)
+#             else:
+#                 print(e)              
     
-    def static_sl(self,precision):
-        try:
-            print("sl_id:", self.sl_id)
-            static_sl= client.futures_create_order(
-                newClientOrderId = self.sl_id,
-                symbol = self.symbol,
-                side = self.sl_side,
-                type = 'STOP_MARKET',
-                stopPrice=self.sl,
-                closePosition = "true",
-            )
-            self.sl_set=True
-        except exceptions.BinanceAPIException as e:
-            if not(e.code==-2021): 
-                print(e)
-                #implies error is that the precision is too high
-                self.sl=format_sl(self.sl,precision-1)
-                try:
-                    self.sl=format_sl(self.sl,precision-1)
-                    print("New sl:",self.sl)
-                    self.static_sl(precision-1)
-                except exceptions.BinanceAPIException as e2:
-                    print(e2)
-            else:
-                print(e)
+#     def static_sl(self,precision):
+#         try:
+#             print("sl_id:", self.sl_id)
+#             static_sl= client.futures_create_order(
+#                 newClientOrderId = self.sl_id,
+#                 symbol = self.symbol,
+#                 side = self.sl_side,
+#                 type = 'STOP_MARKET',
+#                 stopPrice=self.sl,
+#                 closePosition = "true",
+#             )
+#             self.sl_set=True
+#         except exceptions.BinanceAPIException as e:
+#             if not(e.code==-2021): 
+#                 print(e)
+#                 #implies error is that the precision is too high
+#                 self.sl=format_sl(self.sl,precision-1)
+#                 try:
+#                     self.sl=format_sl(self.sl,precision-1)
+#                     print("New sl:",self.sl)
+#                     self.static_sl(precision-1)
+#                 except exceptions.BinanceAPIException as e2:
+#                     print(e2)
+#             else:
+#                 print(e)
 
-    def setup_trade(self):
-        try:
-            self.create_entry_order()
-            print('Created entry order.')
-        except exceptions.BinanceAPIException as e:
-            print('Could not create entry order.')
-            code=e.code
-            if code==-1111:
-                while code==-1111 and code!=0:
-                    self.entry=round_one_place_down(self.entry)
-                    try:
-                        self.create_entry_order()
-                        code=0
-                        print('Created entry order.')
-                    except exceptions.BinanceAPIException as error:
-                        code=error.code
-            else:
-                print(self.__dict__)
-                print("stopping")
-                sys.exit()
+#     def setup_trade(self):
+#         try:
+#             self.create_entry_order()
+#             print('Created entry order.')
+#         except exceptions.BinanceAPIException as e:
+#             print('Could not create entry order.')
+#             code=e.code
+#             if code==-1111:
+#                 while code==-1111 and code!=0:
+#                     self.entry=round_one_place_down(self.entry)
+#                     try:
+#                         self.create_entry_order()
+#                         code=0
+#                         print('Created entry order.')
+#                     except exceptions.BinanceAPIException as error:
+#                         code=error.code
+#             else:
+#                 print(self.__dict__)
+#                 print("stopping")
+#                 sys.exit()
         
         
-        print("Setting static tp")
-        self.static_tp(5)
+#         print("Setting static tp")
+#         self.static_tp(5)
 
         
-        print("Setting static sl")
-        self.static_sl(5)
-        if self.entry_set and self.sl_set and self.tp_set:
-            self.update_records()
-        else:
-            print("Trade could not be setup, cancelling orders")
-            self.cancel_trade
+#         print("Setting static sl")
+#         self.static_sl(5)
+#         if self.entry_set and self.sl_set and self.tp_set:
+#             self.update_records()
+#         else:
+#             print("Trade could not be setup, cancelling orders")
+#             self.cancel_trade
             
 
-class Reversal():
-    def __init__(self,support,resistance,symbol):
-        self.res=resistance
-        self.sup=support
-        self.symbol = str(symbol)
-        self.delta=self.res-self.sup
-        self.tp=(self.sup+self.res)/2
-        self.resistance_reversal=ReversalScalp('SELL',0.3,symbol=symbol,entry=self.res,tp=self.tp,sl=self.res+self.delta*0.5,leverage=20)
-        self.support_reversal=ReversalScalp('BUY',0.3,symbol=symbol,entry=self.sup,tp=self.tp,sl=self.sup-self.delta*0.5,leverage=20)
+# class Reversal():
+#     def __init__(self,support,resistance,symbol):
+#         self.res=resistance
+#         self.sup=support
+#         self.symbol = str(symbol)
+#         self.delta=self.res-self.sup
+#         self.tp=(self.sup+self.res)/2
+#         self.resistance_reversal=ReversalScalp('SELL',0.3,symbol=symbol,entry=self.res,tp=self.tp,sl=self.res+self.delta*0.5,leverage=20)
+#         self.support_reversal=ReversalScalp('BUY',0.3,symbol=symbol,entry=self.sup,tp=self.tp,sl=self.sup-self.delta*0.5,leverage=20)
         
-    def setup_trade(self):
-        self.resistance_reversal.setup_trade()
-        self.support_reversal.setup_trade()
+#     def setup_trade(self):
+#         self.resistance_reversal.setup_trade()
+#         self.support_reversal.setup_trade()
         
 
 
-class BreakoutSwing():
-    def __init__(self,support,resistance,symbol):
-        self.res=resistance
-        self.sup=support
-        self.symbol = str(symbol)
-        delta=self.res=self.sup
-        #self.fibs=self.calculate_fib_array() for further development
-        self.bullish_breakout=TrailingSwing('BUY',0.3,symbol=symbol,entry=self.res+delta*0.1,leverage=20)
-        self.bearish_breakdown=TrailingSwing('SELL',0.3,symbol=symbol,entry=self.sup-delta*0.1,leverage=20)
+# class BreakoutSwing():
+#     def __init__(self,support,resistance,symbol):
+#         self.res=resistance
+#         self.sup=support
+#         self.symbol = str(symbol)
+#         delta=self.res=self.sup
+#         #self.fibs=self.calculate_fib_array() for further development
+#         self.bullish_breakout=TrailingSwing('BUY',0.3,symbol=symbol,entry=self.res+delta*0.1,leverage=20)
+#         self.bearish_breakdown=TrailingSwing('SELL',0.3,symbol=symbol,entry=self.sup-delta*0.1,leverage=20)
 
-    def setup_trade(self):
-        self.bullish_breakout.setup_trade()
-        self.bearish_breakdown.setup_trade()
-    # def calculate_fib_array(self):
-    #     delta=self.res-self.sup
-    #     return list(map(lambda x: self.sup+delta*x,fib_values))
+#     def setup_trade(self):
+#         self.bullish_breakout.setup_trade()
+#         self.bearish_breakdown.setup_trade()
+#     # def calculate_fib_array(self):
+#     #     delta=self.res-self.sup
+#     #     return list(map(lambda x: self.sup+delta*x,fib_values))
 
 
-class MonitoredTrade(Trade): 
+# class MonitoredTrade(Trade): 
      def __init__(self,side,percent_amount,symbol,entry,sl, leverage):
         super().__init__(side,percent_amount,symbol,entry,sl, leverage)
 #     def __init__(self, price = None):

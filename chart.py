@@ -48,15 +48,31 @@ def get_viable_trades_for_symbol(symbol):
     print('Checking:', symbol)
     if symbol_open_orders(symbol):
         trade_found=False
-
+        buy=None
+        macd=get_macd(symbol)
+        macd_positive=map(lambda x: x>0,macd)
+        macd_negative=map(lambda x: x<0, macd)
+        #checks for bearish trend
+        if all(macd_positive):
+            if macd[2]<macd[1] and macd[1]<macd[0]:#checks if macd is increasing
+                print("Bearish reversal found ",symbol)
+                trade_found=True
+                buy=False
+        #checks for bullish trend
+        if all(macd_negative):
+            if macd[2]>macd[1] and macd[1]>macd[0]:#checks if macd is decresing 
+                trade_found=True
+                buy=True
+                print("Bullish reversal found ",symbol)
         if trade_found:
+            trade=(buy,symbol)
             return trade
         else:
             #print('Could not find trade for ', symbol)
             return
     else:
         #print("There are open orders for ", symbol)
-        return 
+        return
 
 def get_peaks(data):
     if len(data)>0:
@@ -153,7 +169,7 @@ def get_support(symbol):
     stationary_points=get_stationary_points('4 hr',symbol,'2 weeks ago')
     get_horizontal_lines(stationary_points)
     
-def get_macd(symbol): #takes in candlestick data returns latest 3 macd values
+def get_macd(symbol,interval): #takes in symbol and time interval and returns 3 lates macd values including current
     endpoint = f"https://api.taapi.io/macdfix"
     macd=[]
     # n=len(data)
@@ -175,11 +191,11 @@ def get_macd(symbol): #takes in candlestick data returns latest 3 macd values
         print(result)
         time.sleep(60)
         macd.append(result['valueMACDHist'])
-    print(macd)
+    return macd
 
 # since_time=get_current_time(binance)-convert_to_milliseconds(2)
 # candles=binance.fetchOHLCV('LINK/USDT','1h',since=since_time)
 # print(candles)
-get_macd()
+
 # identify_trend('ETHUSDT')
 # get_support('XRPUSDT')
