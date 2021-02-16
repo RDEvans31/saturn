@@ -1,6 +1,7 @@
 from datetime import datetime
 import chart
 import trader
+import scipy 
 import pyinputplus as pyip
 
 from multiprocessing import Process
@@ -8,9 +9,8 @@ import asyncio
 
 client=trader.client
 
-symbols=['XRPUSDT','ETHUSDT','WAVESUSDT','LTCUSDT','IOTAUSDT','OMGUSDT','ALGOUSDT']
-time_periods=['1 hour ago', '2 hours ago', '3 hours ago','4 hours ago']
-
+# symbols=['EOS/USDT','LINK/USDT','ETH/USDT','WAVES/USDT','LTC/USDT','IOTA/USDT','OMG/USDT','ALGO/USDT','TRX/USDT','XLM/USDT','ADA/USDT','BAND/USDT','VET/USDT','1INCH/USDT','REN/USDT','YFII/USDT']
+symbols=['BTC/USDT','ETH/USDT','LINK/USDT','DOT/USDT','REN/USDT','ADA/USDT']
 def get_viable_trades(symbol):
         global viable_trades
         t = chart.get_viable_trades_for_symbol(symbol)
@@ -63,11 +63,10 @@ def setup_trades(trades):
 
 
 def main():
-        
-        time=chart.time_periods 
         print("Started trade:", datetime.now().strftime("%H:%M:%S"))
         for symbol in symbols:
-                get_viable_trades(symbol)
+                print(symbol, chart.get_swing_trade(symbol), chart.get_current_price(symbol))
+        # best_trade=min()
         print("Ended:", datetime.now().strftime("%H:%M:%S"))
         # return(viable_trades)
 
@@ -75,7 +74,7 @@ account = trader.account
 viable_trades=[]
 main()
 # asyncio.run(main())
-setup_trades(viable_trades)
-update_logs(account)
+# setup_trades(viable_trades)
+# update_logs(account)
 
         

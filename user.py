@@ -1,6 +1,7 @@
 from binance.client import Client
 import json
 import time
+import ccxt
 import pandas as pd
 from datetime import date
 from binance import exceptions
@@ -9,6 +10,13 @@ from binance import exceptions
 client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK', '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4') 
 #client = Client('uuMkEps4tMUnkj0IJpDkzJRilyzylb0ajLpvQC1a9aad5X9hKSOcNLcRkXbNPcKE', 'VBmJ8JBeLglFIO3eT83lwKsAdI0PowjUf95EAlUoKiKbMf9aIQW6eO0CexXEq6su')
 # client.API_URL = 'https://testnet.binance.vision/api' 
+
+binance = ccxt.binance({
+    'apiKey': 'HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK',
+    'secret': '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4',
+    'timeout': 30000,
+    'enableRateLimit': True,
+})
 
 def filter_by_symbol(symbol,orders):
     return list(filter(lambda x: x['symbol']==symbol,orders))

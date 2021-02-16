@@ -8,7 +8,7 @@ import sys
 
 account = user.account
 client = account.client
-fib_values=[0.236,0.382,0.5,0.618,0.786]
+fib_values=[0,0.236,0.382,0.5,0.618,0.786,1]
 
 def format_tp(tp_array,precision):
     try:
@@ -29,7 +29,7 @@ def round_one_place_down(n):
 
 
 class Trade:
-    def __init__(self,side,symbol,entry,sl):        
+    def __init__(self,side,tp,symbol,entry,sl):        
         
         now = datetime.now()
         self.side = str(side)
@@ -64,7 +64,7 @@ class Trade:
         precision = list(filter(lambda x : x['symbol'] == self.symbol,client.futures_exchange_info()['symbols']))[0]['quantityPrecision']
         self.amount = float( "{:.{prec}f}".format( (self.trade_capital)/entry, prec=precision ))
         self.worst_case_amount=abs(self.entry*self.amount-self.sl*self.amount)
-        self.tp_trigger=[]
+        self.tp_trigger=tp
         self.entry_set=False
         self.sl_set=False
         self.tp_set=False
@@ -441,8 +441,8 @@ class Trade:
 
 
 # class MonitoredTrade(Trade): 
-     def __init__(self,side,percent_amount,symbol,entry,sl, leverage):
-        super().__init__(side,percent_amount,symbol,entry,sl, leverage)
+    #  def __init__(self,side,percent_amount,symbol,entry,sl, leverage):
+    #     super().__init__(side,percent_amount,symbol,entry,sl, leverage)
 #     def __init__(self, price = None):
 #         self.current_price = price 
         
