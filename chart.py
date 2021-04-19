@@ -2,6 +2,7 @@ import ccxt
 import user
 import statistics
 import time
+from pprint import pprint
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
@@ -163,7 +164,7 @@ def get_risk_reward(sl,tp_array,entry):
     return risk/min_reward
 
 #trend analysis    
-def get_ma(symbol,window,time_interval='1d'):
+def get_sma(symbol,window,time_interval='1d'):
      #using daily for now
     kline=binance.fetchOHLCV(symbol,str(time_interval))
     closes=list(map(lambda x: float(x[4]),kline))
@@ -179,10 +180,16 @@ def get_ma(symbol,window,time_interval='1d'):
     sma.append(statistics.mean(last_closes))
     return sma
 
+def get_ema(symbol,window,time_interval='1d'):
+    sma_start=get_sma(symbol,window,time_interval)
+    weight = 2/(window+1)
+    
+    return 
+
 def identify_trend(symbol,time_interval):
-    ma_fast=get_ma(symbol,8,time_interval)[-1]
-    ma_medium=get_ma(symbol,21,time_interval)[-1]
-    ma_slow=get_ma(symbol,50,time_interval)[-1]
+    ma_fast=get_sma(symbol,8,time_interval)[-1]
+    ma_medium=get_sma(symbol,21,time_interval)[-1]
+    ma_slow=get_sma(symbol,50,time_interval)[-1]
 
     if ma_fast>ma_medium and ma_medium>ma_slow:
         return 4
@@ -291,9 +298,9 @@ def clean_results(raw_support_resistance, price_data):
     result=raw_support_resistance[(raw_support_resistance['price'] < 1.5*current_price) & (raw_support_resistance['price'] > 0.5*current_price)]
     
     deviations_series=result['price'].apply(get_deviations, args=(price_data,))
-    print(deviations_series)
     result=result.assign(deviations=deviations_series)
-    print(result)
+    print('pretty_printing')
+    pprint(result)
     result=get_generic_maxima(raw_support_resistance,'datapoints')
     pass
 

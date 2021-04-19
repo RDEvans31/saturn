@@ -1,8 +1,14 @@
 import user
+import ccxt
 from binance.exceptions import BinanceAPIException
 
 account = user.User()
 client=user.client
+
+phemex = ccxt.phemex({
+    'secret' : 'GgWgKUdSCiSirVXS9fmXd4_th-SeXFjMr9g_HmJBgFU2MjQ0ZDMzMy04NmVkLTQ3ZmMtOGNlMC02MDZmZTJjMzEzYWM',
+    'enableRateLimit': True,
+})
 
 #1. read from list of dictonaries conatining investments.
 #2. for each investment, purchase amount equivalent to money set aside
@@ -52,7 +58,7 @@ class Investment:
 pairs=[
         {
             'asset' : 'SXP',
-            'symbol':'SXPUSDT',
+            'symbol':'SXP/USDT',
             'recurring_amount':10,
         },
         # {
@@ -62,7 +68,7 @@ pairs=[
         # },
         {
             'asset' : 'WAVES',
-            'symbol': 'WAVESUSDT',
+            'symbol': 'WAVES/USDT',
             'recurring_amount': 10,
         }
     ]
