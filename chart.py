@@ -61,8 +61,8 @@ def get_viable_trades_for_symbol(symbol):
 #         extreme=candles.loc[index]['lowest']
 #         close=candles.loc[index]['close']
 #     else:
-#         index=candles['highest'].idxmax()
-#         extreme=candles.loc[index]['highest']
+#         index=candles['high'].idxmax()
+#         extreme=candles.loc[index]['high']
 #         close=candles.loc[index]['close']
 
 #     sl=extreme
@@ -214,8 +214,8 @@ def get_maxima(data, range_param=3):
             else:
                 subset=data.iloc[i-range_param:i+domain_range+1]
 
-            if current_series['highest']==subset['highest'].max():
-                peaks.append([current_series['timestamp'],current_series['close'],current_series['highest']])
+            if current_series['high']==subset['high'].max():
+                peaks.append([current_series['timestamp'],current_series['close'],current_series['high']])
      
         peaks_df=pd.DataFrame(data=peaks,columns=['timestamp','close','extreme'])
         return peaks_df.sort_values(by='timestamp',ascending=False)
@@ -260,7 +260,7 @@ def get_generic_maxima(dataframe, metric_column, range_param=1): #assumes datafr
         #     else:
         #         subset=dataframe.iloc[i-range_param:i+domain_range+1]
 
-        #     if current_series[]==subset['highest'].max():
+        #     if current_series[]==subset['high'].max():
         #         peaks.append(current_series)
      
         # peaks_df=pd.DataFrame(data=peaks,columns=list(dataframe.columns))
@@ -271,7 +271,7 @@ def get_generic_maxima(dataframe, metric_column, range_param=1): #assumes datafr
 def get_support_resistance(price_data):
     maxima=get_maxima(price_data,1)
     minima=get_minima(price_data,1)
-    raw_data=[]+price_data['highest'].values.tolist()+price_data['close'].values.tolist()+price_data['lowest'].values.tolist()
+    raw_data=[]+price_data['high'].values.tolist()+price_data['close'].values.tolist()+price_data['lowest'].values.tolist()
     maxima_minima=[]+maxima['extreme'].values.tolist()+minima['extreme'].values.tolist()
     support_resistance_lines=get_horizontal_lines(raw_data, maxima_minima)
     cleaned_result=clean_results(support_resistance_lines, price_data)
