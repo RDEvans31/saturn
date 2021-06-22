@@ -53,7 +53,7 @@ def get_price_data(interval, exchange=binance, since=None, symbol=None, data=pd.
 
     if not(data.empty):
         candles=[]
-        for i in reversed(range(len(data))):
+        for i in range(len(data)):
             candle=data.iloc[i]
             candles.append((candle['unix'],candle['open'], candle['high'],candle['low'], candle['close']))
 
@@ -65,7 +65,8 @@ def get_price_data(interval, exchange=binance, since=None, symbol=None, data=pd.
             candles=exchange.fetchOHLCV(symbol,interval,since=since)
 
     if weekly:
-        for i in range(0,len(candles)//7):
+        no_full_weeks=len(candles)//7
+        for i in range(0,no_full_weeks):
             start=i*7
             end=start+7 #this is the index after the last day of the week
             week=candles[start:end]
@@ -75,6 +76,14 @@ def get_price_data(interval, exchange=binance, since=None, symbol=None, data=pd.
             low = min(list (map(lambda x: x[3], week)))
             close = week[6][4]
             weekly_candles.append((timestamp,open,high,low,close))
+        week_in_progress=candles[no_full_weeks:len(candles)]
+        timestamp = week_in_progress[-1][0]
+        open = week[0][1]
+        high = max(list(map(lambda x: x[2], week_in_progress)))
+        low = min(list (map(lambda x: x[3], week_in_progress)))
+        close = week_in_progress[-1][4]
+        weekly_candles.append((timestamp,open,high,low,close))
+
         candles=weekly_candles
 
     timestamps=list(map(lambda x: x[0], candles))
@@ -84,5 +93,5 @@ def get_price_data(interval, exchange=binance, since=None, symbol=None, data=pd.
     lowest=np.array(list(map(lambda x: x[3], candles)),dtype=float)
     closes=np.array(list(map(lambda x: x[4], candles)),dtype=float)
 
-    return pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ascending=False, ignore_index=True)
+    return pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
 
