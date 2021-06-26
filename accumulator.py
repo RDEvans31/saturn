@@ -57,20 +57,10 @@ class Investment:
 
 pairs=[
         {
-            'asset' : 'SXP',
-            'symbol':'SXP/USDT',
-            'recurring_amount':10,
+            'asset' : 'XRP',
+            'symbol':'XRPUSDT',
+            'recurring_amount':10, #buy 10 dollars worth everytime this is run
         },
-        # {
-        #     'asset' : 'XRP',
-        #     'symbol':'XRPUSDT',
-        #     'recurring_amount':10, #buy 10 dollars worth everytime this is run
-        # },
-        {
-            'asset' : 'WAVES',
-            'symbol': 'WAVES/USDT',
-            'recurring_amount': 10,
-        }
     ]
 for currency in pairs:
     current_price = float(list(filter(lambda x : x['symbol'] == currency['symbol'], client.get_all_tickers()))[0]['price'])
