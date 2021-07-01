@@ -95,3 +95,4 @@ def get_price_data(interval, exchange=binance, since=None, symbol=None, data=pd.
 
     return pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
 
+#print(get_price_data('1h',exchange=binance,symbol='ADA/USDT'))

@@ -4,6 +4,7 @@ from decimal import Decimal
 from binance import exceptions
 from datetime import datetime
 import math
+import price_data
 import sys
 
 account = user.account
