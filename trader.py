@@ -2,10 +2,17 @@ import user
 import pandas as pd
 from decimal import Decimal
 from binance import exceptions
+import ccxt
 from datetime import datetime
 import math
 import price_data
 import sys
+
+ftx = ccxt.ftx({
+    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
+    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
+    'enableRateLimit': True,
+})
 
 account = user.account
 client = account.client
