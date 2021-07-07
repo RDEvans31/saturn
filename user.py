@@ -11,10 +11,10 @@ client = Client('HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYF
 #client = Client('uuMkEps4tMUnkj0IJpDkzJRilyzylb0ajLpvQC1a9aad5X9hKSOcNLcRkXbNPcKE', 'VBmJ8JBeLglFIO3eT83lwKsAdI0PowjUf95EAlUoKiKbMf9aIQW6eO0CexXEq6su')
 # client.API_URL = 'https://testnet.binance.vision/api' 
 
-binance = ccxt.binance({
-    'apiKey': 'HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK',
-    'secret': '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4',
-    'timeout': 30000,
+
+ftx = ccxt.ftx({
+    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
+    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
     'enableRateLimit': True,
 })
 
@@ -139,21 +139,6 @@ class User:
                   
                 if cancelled:
                     records=update_record(i,records,current_record,'Cancelled')
-                
-class SpotAccount():
-    def  __init__(self):
-        self.balances=list(filter(lambda x: float(x['free'])!=0,client.get_account()['balances']))
-        self.cash_balance=float(client.get_asset_balance('USDT')['free'])
-        self.estimated_total_value=self.estimate_total_value()    
-
-    def estimate_total_value(self):
-        total=self.cash_balance
-        for x in self.balances:
-            if x['asset']!='USDT':
-                filtered_ticker=list(filter(lambda ticker : ticker['symbol'] == x['asset']+'USDT', client.get_all_tickers()))
-                if len(filtered_ticker)>0:
-                    total=total+float(x['free'])*float(filtered_ticker[0]['price'])
-        return total
 
 class FuturesAccount: 
     def __init__(self,client):

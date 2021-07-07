@@ -53,8 +53,8 @@ import sys
 # #     candles=price.get_price_data(symbol,'15m',since=binance.fetch_time()-price.convert_to_milliseconds(1))
 
 # #     if trade_side:
-# #         index=candles['lowest'].idxmin()
-# #         extreme=candles.loc[index]['lowest']
+# #         index=candles['low'].idxmin()
+# #         extreme=candles.loc[index]['low']
 # #         close=candles.loc[index]['close']
 # #     else:
 # #         index=candles['high'].idxmax()
@@ -96,7 +96,7 @@ import sys
 #         return None
 
 # def get_sl(symbol,trade_side,interval='1h'): 
-#     since_time=binance.fetch_time()-price.convert_to_milliseconds(48)#fetches timestamp for 48 hrs before
+#     since_time=binance.fetch_time()-price.convert_to_milliseconds(48)#fetches unix for 48 hrs before
 #     candles_48=price.get_price_data(symbol,interval,since=since_time)
 #     #gets relevant stationary points
 #     if trade_side:
@@ -104,10 +104,10 @@ import sys
 #     else:
 #         stationary_points_48=get_maxima(candles_48)
     
-#     stationary_points_36=stationary_points_48.loc[stationary_points_48['timestamp']>=11] 
-#     stationary_points_24=stationary_points_48.loc[stationary_points_48['timestamp']>=23]
-#     stationary_points_18=stationary_points_48.loc[stationary_points_48['timestamp']>=29]
-#     stationary_points_12=stationary_points_48.loc[stationary_points_48['timestamp']>=35]
+#     stationary_points_36=stationary_points_48.loc[stationary_points_48['unix']>=11] 
+#     stationary_points_24=stationary_points_48.loc[stationary_points_48['unix']>=23]
+#     stationary_points_18=stationary_points_48.loc[stationary_points_48['unix']>=29]
+#     stationary_points_12=stationary_points_48.loc[stationary_points_48['unix']>=35]
 #     stationary_points=[stationary_points_12,stationary_points_18,stationary_points_24,stationary_points_36,stationary_points_48]
 
 #     sl_found=False
@@ -131,13 +131,13 @@ import sys
 # def get_fibs(symbol,interval='5m'):
 
 #     fib_values=[0,0.236,0.382,0.5,0.618,0.786,1]
-#     since_time=binance.fetch_time()-price.convert_to_milliseconds(24)#fetches timestamp for 12 hrs before
+#     since_time=binance.fetch_time()-price.convert_to_milliseconds(24)#fetches unix for 12 hrs before
 #     candles=binance.fetchOHLCV(symbol,interval,since=since_time)
 #     highs=list(map(lambda x: x[2],candles))
 #     lows=list(map(lambda x: x[3],candles))
-#     highest=float(max(highs))
-#     lowest=float(min(lows))
-#     fib_levels=list(map(lambda x: lowest+(highest-lowest)*x,fib_values))
+#     high=float(max(highs))
+#     low=float(min(lows))
+#     fib_levels=list(map(lambda x: low+(high-low)*x,fib_values))
 
 #     return fib_levels
 
@@ -159,42 +159,55 @@ import sys
 #     risk=abs(sl-entry)
 #     return risk/min_reward
 
-#trend analysis    
-def get_sma(symbol,window,time_interval='1d'):
-     #using daily for now
-    kline=binance.fetchOHLCV(symbol,str(time_interval))
-    closes=list(map(lambda x: float(x[4]),kline))
-    l=len(closes)
-    sma=[]
-    for i in range(l-2*window,l):
-        last_closes=closes[i-window:i]
-        new_average=statistics.mean(last_closes)
-        sma.append(new_average)
-    current_price=get_current_price(symbol)
-    last_closes=last_closes[1:]
-    last_closes.append(current_price)
-    sma.append(statistics.mean(last_closes))
-    return sma
+#trend analysis
 
-def get_ema(symbol,window,time_interval='1d'):
-    sma_start=get_sma(symbol,window,time_interval)
-    weight = 2/(window+1)
+def get_gradient(ma):
     
-    return 
+    return pd.Series(
+        index=ma['unix'].values,
+        data=np.gradient(ma['value'])
+    )
 
-def identify_trend(symbol,time_interval):
-    ma_fast=get_sma(symbol,8,time_interval)[-1]
-    ma_medium=get_sma(symbol,21,time_interval)[-1]
-    ma_slow=get_sma(symbol,50,time_interval)[-1]
+def ma_channel(data, window):
+    timestamps=data['unix']
+    sma=data.rolling(window).mean()
+    sma['unix']=timestamps
+    sma.dropna(inplace=True)    
 
-    if ma_fast>ma_medium and ma_medium>ma_slow:
-        return 4
-    elif ma_fast<ma_medium and ma_medium>ma_slow:
-        return 2
-    elif ma_fast<ma_medium and ma_medium<ma_slow:
-        return 1
-    elif ma_fast>ma_medium and ma_medium<ma_slow:
-        return 3
+    return pd.DataFrame({'unix':sma['unix'],'high':sma['high'], 'low':sma['low'], 'close':sma['close']})
+
+def get_sma(data,window):
+     #using daily for now
+    timestamps=data['unix'][window-1:]
+    sma=data.rolling(window).mean()['close'].dropna()
+    return pd.DataFrame({'unix': timestamps,'value':sma})
+
+    # return pd.DataFrame({'unix': list(map(lambda x: x[0], sma)),'value':list(map(lambda x: x[1], sma))})
+
+def get_ema(data,window):
+    timestamps=data['unix'][window:]
+    ema=data.ewm(span=window,min_periods=window+1, adjust=False).mean()['close'].dropna()
+    return pd.DataFrame({'unix': timestamps,'value':ema})
+
+def identify_trend(daily, hourly): #using moving average channel
+    long_ema=get_ema(daily,21)
+    channel=ma_channel(hourly,20)
+
+    gradient = get_gradient(long_ema)
+    upper_bound=channel.iloc[-1]['high']
+    lower_bound=channel.iloc[-1]['low']
+    time=channel.iloc[-1]['unix']
+    day=max(filter(lambda x: x <= time,list(gradient.index)))
+    five_closes=hourly.tail(n=5)['close'].values
+    uptrend=gradient.loc[day]>0
+    current=five_closes[-1]
+
+    if all(close>upper_bound for close in five_closes) and uptrend.all():
+        return 'uptrend'
+    elif all(close<lower_bound for close in five_closes) and not(uptrend.all()):
+        return 'downtrend'
+    else:
+        return 'neutral'
 
 #data analysis
 def get_maxima(data, range_param=3):
@@ -211,10 +224,10 @@ def get_maxima(data, range_param=3):
                 subset=data.iloc[i-range_param:i+domain_range+1]
 
             if current_series['high']==subset['high'].max():
-                peaks.append([current_series['timestamp'],current_series['close'],current_series['high']])
+                peaks.append([current_series['unix'],current_series['close'],current_series['high']])
      
-        peaks_df=pd.DataFrame(data=peaks,columns=['timestamp','close','extreme'])
-        return peaks_df.sort_values(by='timestamp',ascending=False)
+        peaks_df=pd.DataFrame(data=peaks,columns=['unix','close','extreme'])
+        return peaks_df.sort_values(by='unix',ascending=False)
     else:
         return None
 
@@ -232,11 +245,11 @@ def get_minima(data, range_param=3):
             else:
                 subset=data.iloc[i-range_param:i+domain_range+1]
 
-            if current_series['lowest']==subset['lowest'].min():
-                troughs.append([current_series['timestamp'],current_series['close'],current_series['lowest']])
+            if current_series['low']==subset['low'].min():
+                troughs.append([current_series['unix'],current_series['close'],current_series['low']])
 
-        troughs_df=pd.DataFrame(data=troughs,columns=['timestamp','close','extreme'])
-        return troughs_df.sort_values(by='timestamp',ascending=False)
+        troughs_df=pd.DataFrame(data=troughs,columns=['unix','close','extreme'])
+        return troughs_df.sort_values(by='unix',ascending=False)
     else:
         return None
 
@@ -267,7 +280,7 @@ def get_generic_maxima(dataframe, metric_column, range_param=1): #assumes datafr
 def get_support_resistance(price_data):
     maxima=get_maxima(price_data,1)
     minima=get_minima(price_data,1)
-    raw_data=[]+price_data['high'].values.tolist()+price_data['close'].values.tolist()+price_data['lowest'].values.tolist()
+    raw_data=[]+price_data['high'].values.tolist()+price_data['close'].values.tolist()+price_data['low'].values.tolist()
     maxima_minima=[]+maxima['extreme'].values.tolist()+minima['extreme'].values.tolist()
     support_resistance_lines=get_horizontal_lines(raw_data, maxima_minima)
     cleaned_result=clean_results(support_resistance_lines, price_data)
@@ -338,11 +351,11 @@ def get_ABC_fib_extension(price_data,uptrend, time_interval='1d'):
     else:
         range_param=2
     highs=get_maxima(price_data,range_param=range_param)
-    # highs.sort_values(by=['timestamp','extreme'], inplace=True)
+    # highs.sort_values(by=['unix','extreme'], inplace=True)
     # print(highs)
 
     lows=get_minima(price_data,range_param=range_param)
-    # lows.sort_values(by=['timestamp','timestamp'], inplace=True)
+    # lows.sort_values(by=['unix','unix'], inplace=True)
     # print(lows)
 
     A_found=False
@@ -352,9 +365,9 @@ def get_ABC_fib_extension(price_data,uptrend, time_interval='1d'):
     if uptrend:
         #looks for first peak, then checks either side
         B=highs.iloc[0]['extreme']
-        B_timestamp=highs.iloc[0]['timestamp']
-        before_B=lows['timestamp']<B_timestamp
-        after_B=lows['timestamp']>B_timestamp
+        B_unix=highs.iloc[0]['unix']
+        before_B=lows['unix']<B_unix
+        after_B=lows['unix']>B_unix
         if len(lows[after_B].index)==0:
             return
         C=lows[after_B]['extreme'].min()
@@ -364,9 +377,9 @@ def get_ABC_fib_extension(price_data,uptrend, time_interval='1d'):
 
     else:
         B=lows.iloc[0]['extreme']
-        B_timestamp=lows.iloc[0]['timestamp']
-        before_B=highs['timestamp']<B_timestamp
-        after_B=highs['timestamp']>B_timestamp
+        B_unix=lows.iloc[0]['unix']
+        before_B=highs['unix']<B_unix
+        after_B=highs['unix']>B_unix
         if len(highs[after_B].index)==0:
             return
         C=highs[after_B]['extreme'].max()
@@ -385,5 +398,5 @@ def get_swing_trade(symbol):
     fib=get_ABC_fib_extension(candles,trend>2)
     return fib
 
-price_data=price.get_price_data(symbol='BTC/USDT', interval='4h')
-get_support_resistance(price_data)
+# price_data=price.get_price_data(symbol='BTC/USDT', interval='4h')
+# get_support_resistance(price_data)

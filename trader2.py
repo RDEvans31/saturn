@@ -12,4 +12,13 @@ ftx = ccxt.ftx({
 
 daily=price.get_price_data('1d',symbol='ETH/USD')
 hourly=price.get_price_data('1h',symbol='ETH/USD')
-print(chart.identify_trend(daily,hourly))
+trend=chart.identify_trend(daily,hourly)
+
+state='neutral'
+
+if trend == 'uptrend':
+    
+elif trend == 'downtrend':
+    
+else:
+    pass
