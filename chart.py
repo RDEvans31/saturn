@@ -159,54 +159,42 @@ import sys
 #     risk=abs(sl-entry)
 #     return risk/min_reward
 
-#trend analysis
-def get_gradient(ma):
-    
-    return pd.Series(
-        index=ma['unix'].values,
-        data=np.gradient(ma['value'])
-    )
-
-def ma_channel(data, window):
-    timestamps=data['unix']
-    sma=data.rolling(window).mean()
-    sma['unix']=timestamps
-    sma.dropna(inplace=True)    
-
-    return pd.DataFrame({'unix':sma['unix'],'high':sma['high'], 'low':sma['low'], 'close':sma['close']})
-
-def get_sma(data,window):
+#trend analysis    
+def get_sma(symbol,window,time_interval='1d'):
      #using daily for now
-    timestamps=data['unix'][window-1:]
-    sma=data.rolling(window).mean()['close'].dropna()
-    return pd.DataFrame({'unix': timestamps,'value':sma})
+    kline=binance.fetchOHLCV(symbol,str(time_interval))
+    closes=list(map(lambda x: float(x[4]),kline))
+    l=len(closes)
+    sma=[]
+    for i in range(l-2*window,l):
+        last_closes=closes[i-window:i]
+        new_average=statistics.mean(last_closes)
+        sma.append(new_average)
+    current_price=get_current_price(symbol)
+    last_closes=last_closes[1:]
+    last_closes.append(current_price)
+    sma.append(statistics.mean(last_closes))
+    return sma
 
-    # return pd.DataFrame({'unix': list(map(lambda x: x[0], sma)),'value':list(map(lambda x: x[1], sma))})
+def get_ema(symbol,window,time_interval='1d'):
+    sma_start=get_sma(symbol,window,time_interval)
+    weight = 2/(window+1)
+    
+    return 
 
-def get_ema(data,window):
-    timestamps=data['unix'][window:]
-    ema=data.ewm(span=window,min_periods=window+1, adjust=False).mean()['close'].dropna()
-    return pd.DataFrame({'unix': timestamps,'value':ema})
+def identify_trend(symbol,time_interval):
+    ma_fast=get_sma(symbol,8,time_interval)[-1]
+    ma_medium=get_sma(symbol,21,time_interval)[-1]
+    ma_slow=get_sma(symbol,50,time_interval)[-1]
 
-def identify_trend(daily, hourly): #using moving average channel
-    long_ema=get_ema(daily,21)
-    channel=ma_channel(hourly,20)
-
-    gradient = get_gradient(long_ema)
-    upper_bound=channel.tail(n=1)['high']
-    lower_bound=channel.tail(n=1)['low']
-    time=channel.tail(n=1)['unix']
-    day=max(filter(lambda x: x<=time,list(gradient.index)))
-    five_closes=hourly.tail(n=5)['close'].values
-    uptrend=gradient.loc[day]>0
-    current=five_closes[-1]
-
-    if all(close>upper_bound for close in five_closes) and uptrend.all():
-        return 'uptrend'
-    elif all(close<lower_bound for close in five_closes) and not(uptrend.all()):
-        return 'downtrend'
-    else:
-        return 'neutral'
+    if ma_fast>ma_medium and ma_medium>ma_slow:
+        return 4
+    elif ma_fast<ma_medium and ma_medium>ma_slow:
+        return 2
+    elif ma_fast<ma_medium and ma_medium<ma_slow:
+        return 1
+    elif ma_fast>ma_medium and ma_medium<ma_slow:
+        return 3
 
 #data analysis
 def get_maxima(data, range_param=3):

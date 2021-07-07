@@ -15,8 +15,8 @@ phemex = ccxt.phemex({
     'enableRateLimit': True,
 })
 ftx = ccxt.ftx({
-    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
-    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
+    'apiKey': 'BV0P57flrZn0UQcZHNJe05VKO6neDpsqBcuWErBU',
+    'secret': 'C-MIbGDXHAs7PNsg81tdfsyQVegrdA7IKLLN9SDv',
     'enableRateLimit': True,
 })
 
@@ -44,16 +44,15 @@ def get_current_price(symbol):
     return (bid+ask)/2
 
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
-def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.DataFrame([])): 
+def get_price_data(interval, exchange=binance, since=None, symbol=None, data=pd.DataFrame([])): 
     weekly=False
     weekly_candles=[]
     if interval=='1w':
         interval='1d'
         weekly=True
 
-    candles=[]
-
     if not(data.empty):
+        candles=[]
         for i in range(len(data)):
             candle=data.iloc[i]
             candles.append((candle['unix'],candle['open'], candle['high'],candle['low'], candle['close']))
@@ -96,3 +95,4 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
 
     return pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
 
+#print(get_price_data('1h',exchange=binance,symbol='ADA/USDT'))

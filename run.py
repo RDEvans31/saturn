@@ -2,7 +2,7 @@ from datetime import datetime
 import chart
 import trader
 import scipy 
-import pyinputplus as pyip 
+import pyinputplus as pyip
 
 from multiprocessing import Process
 import asyncio
@@ -10,7 +10,7 @@ import asyncio
 client=trader.client
 
 # symbols=['EOS/USDT','LINK/USDT','ETH/USDT','WAVES/USDT','LTC/USDT','IOTA/USDT','OMG/USDT','ALGO/USDT','TRX/USDT','XLM/USDT','ADA/USDT','BAND/USDT','VET/USDT','1INCH/USDT','REN/USDT','YFII/USDT']
-symbols=['ETH/USDT']
+symbols=['BTC/USDT','ETH/USDT','LINK/USDT','DOT/USDT','REN/USDT','ADA/USDT']
 def get_viable_trades(symbol):
         global viable_trades
         t = chart.get_viable_trades_for_symbol(symbol)
