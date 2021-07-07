@@ -1,5 +1,4 @@
 import ccxt
-import user
 import statistics
 import time
 from pprint import pprint
@@ -7,161 +6,158 @@ import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
 import math
-from sklearn.ensemble import RandomForestClassifier
 import price_data as price
 import sys 
 
-client=user.client
-open_orders=client.futures_get_open_orders()
 
-def get_viable_trades_for_symbol(symbol):
-    print('Checking:', symbol)
-    trade_options=[]
-    output=[]
-    if no_symbol_open_orders(symbol):
-        trade_found=False
-        try:
-            macd=get_macd(symbol,'1h')
-            all_rsi=get_all_rsi(symbol)
-            ma_trend=get_ma_trend(symbol)
-        except:
-            print('Could not get either macd or rsi or sma')
-            return
+# def get_viable_trades_for_symbol(symbol):
+#     print('Checking:', symbol)
+#     trade_options=[]
+#     output=[]
+#     if no_symbol_open_orders(symbol):
+#         trade_found=False
+#         try:
+#             macd=get_macd(symbol,'1h')
+#             all_rsi=get_all_rsi(symbol)
+#             ma_trend=get_ma_trend(symbol)
+#         except:
+#             print('Could not get either macd or rsi or sma')
+#             return
 
-        trade_options=trade_detector(all_rsi,macd,ma_trend)
+#         trade_options=trade_detector(all_rsi,macd,ma_trend)
         
-        if trade_options != []:
-            print('Trade options found')
-            for trade_option in trade_options:
-                risk_multiplier=trade_option[1]
-                sl=get_sl(symbol,trade_option[0])
-                if sl==None:
-                    print('No sl found, skipping')
-                    continue
-                price=get_current_price(symbol)
-                tp_array=get_tp(trade_option[0],symbol,price)
-                risk_reward=get_risk_reward(sl,tp_array,price)
-                trade=(trade_option[0],symbol,risk_multiplier,sl,tp_array,risk_reward)
-                output.append(trade)
-            return output
-        else:
-            #print('Could not find trade for ', symbol)
-            return
-    else:
-        #print('There are open orders for ', symbol)
-        return
-
-#uses 15m candles from an hour ago to get most recent highs or lows
-# def get_nearest_sl(trade_side,symbol,current_price):
-
-#     candles=price.get_price_data(symbol,'15m',since=binance.fetch_time()-price.convert_to_milliseconds(1))
-
-#     if trade_side:
-#         index=candles['lowest'].idxmin()
-#         extreme=candles.loc[index]['lowest']
-#         close=candles.loc[index]['close']
+#         if trade_options != []:
+#             print('Trade options found')
+#             for trade_option in trade_options:
+#                 risk_multiplier=trade_option[1]
+#                 sl=get_sl(symbol,trade_option[0])
+#                 if sl==None:
+#                     print('No sl found, skipping')
+#                     continue
+#                 price=get_current_price(symbol)
+#                 tp_array=get_tp(trade_option[0],symbol,price)
+#                 risk_reward=get_risk_reward(sl,tp_array,price)
+#                 trade=(trade_option[0],symbol,risk_multiplier,sl,tp_array,risk_reward)
+#                 output.append(trade)
+#             return output
+#         else:
+#             #print('Could not find trade for ', symbol)
+#             return
 #     else:
-#         index=candles['high'].idxmax()
-#         extreme=candles.loc[index]['high']
-#         close=candles.loc[index]['close']
+#         #print('There are open orders for ', symbol)
+#         return
 
-#     sl=extreme
+# #uses 15m candles from an hour ago to get most recent highs or lows
+# # def get_nearest_sl(trade_side,symbol,current_price):
+
+# #     candles=price.get_price_data(symbol,'15m',since=binance.fetch_time()-price.convert_to_milliseconds(1))
+
+# #     if trade_side:
+# #         index=candles['lowest'].idxmin()
+# #         extreme=candles.loc[index]['lowest']
+# #         close=candles.loc[index]['close']
+# #     else:
+# #         index=candles['high'].idxmax()
+# #         extreme=candles.loc[index]['high']
+# #         close=candles.loc[index]['close']
+
+# #     sl=extreme
     
-#     if (trade_side and sl<current_price) or (not(trade_side) and sl>current_price):
-#         return sl
+# #     if (trade_side and sl<current_price) or (not(trade_side) and sl>current_price):
+# #         return sl
+# #     else:
+# #         print('No sl found')
+# #         return None
+
+# def viable_sl(trade_side,stationary_points,current_price):
+#     index=None
+#     if trade_side: #trade is a long 
+#         if len(stationary_points.index) > 0:
+#             index=stationary_points['close'].idxmin()
+
+#     else: #trade is short
+#         if len(stationary_points.index) > 0:
+#             index=stationary_points['close'].idxmax()
+        
+
+#     if index != None:
+#         extreme=stationary_points.loc[index]['extreme']
+#         close=stationary_points.loc[index]['close']
+#         if (abs(close-extreme)/close) > 0.05:
+#             sl=statistics.mean([close,extreme])
+#         else:
+#             sl=extreme
+
+#         if (trade_side and sl<current_price) or (not(trade_side) and sl>current_price):
+#             return sl
+#         else: 
+#             return None
 #     else:
-#         print('No sl found')
 #         return None
 
-def viable_sl(trade_side,stationary_points,current_price):
-    index=None
-    if trade_side: #trade is a long 
-        if len(stationary_points.index) > 0:
-            index=stationary_points['close'].idxmin()
-
-    else: #trade is short
-        if len(stationary_points.index) > 0:
-            index=stationary_points['close'].idxmax()
-        
-
-    if index != None:
-        extreme=stationary_points.loc[index]['extreme']
-        close=stationary_points.loc[index]['close']
-        if (abs(close-extreme)/close) > 0.05:
-            sl=statistics.mean([close,extreme])
-        else:
-            sl=extreme
-
-        if (trade_side and sl<current_price) or (not(trade_side) and sl>current_price):
-            return sl
-        else: 
-            return None
-    else:
-        return None
-
-def get_sl(symbol,trade_side,interval='1h'): 
-    since_time=binance.fetch_time()-price.convert_to_milliseconds(48)#fetches timestamp for 48 hrs before
-    candles_48=price.get_price_data(symbol,interval,since=since_time)
-    #gets relevant stationary points
-    if trade_side:
-        stationary_points_48=get_minima(candles_48)
-    else:
-        stationary_points_48=get_maxima(candles_48)
+# def get_sl(symbol,trade_side,interval='1h'): 
+#     since_time=binance.fetch_time()-price.convert_to_milliseconds(48)#fetches timestamp for 48 hrs before
+#     candles_48=price.get_price_data(symbol,interval,since=since_time)
+#     #gets relevant stationary points
+#     if trade_side:
+#         stationary_points_48=get_minima(candles_48)
+#     else:
+#         stationary_points_48=get_maxima(candles_48)
     
-    stationary_points_36=stationary_points_48.loc[stationary_points_48['timestamp']>=11] 
-    stationary_points_24=stationary_points_48.loc[stationary_points_48['timestamp']>=23]
-    stationary_points_18=stationary_points_48.loc[stationary_points_48['timestamp']>=29]
-    stationary_points_12=stationary_points_48.loc[stationary_points_48['timestamp']>=35]
-    stationary_points=[stationary_points_12,stationary_points_18,stationary_points_24,stationary_points_36,stationary_points_48]
+#     stationary_points_36=stationary_points_48.loc[stationary_points_48['timestamp']>=11] 
+#     stationary_points_24=stationary_points_48.loc[stationary_points_48['timestamp']>=23]
+#     stationary_points_18=stationary_points_48.loc[stationary_points_48['timestamp']>=29]
+#     stationary_points_12=stationary_points_48.loc[stationary_points_48['timestamp']>=35]
+#     stationary_points=[stationary_points_12,stationary_points_18,stationary_points_24,stationary_points_36,stationary_points_48]
 
-    sl_found=False
+#     sl_found=False
     
-    index=0
-    current_price=get_current_price(symbol)
+#     index=0
+#     current_price=get_current_price(symbol)
 
-    while not(sl_found) and index<len(stationary_points):
-        points=stationary_points[index]
-        index += 1
-        possible_sl=viable_sl(trade_side,points, current_price)
-        if possible_sl != None:
-            sl=possible_sl
-            sl_found=True
+#     while not(sl_found) and index<len(stationary_points):
+#         points=stationary_points[index]
+#         index += 1
+#         possible_sl=viable_sl(trade_side,points, current_price)
+#         if possible_sl != None:
+#             sl=possible_sl
+#             sl_found=True
     
-    if sl_found:
-        return sl
-    else:
-        return None
+#     if sl_found:
+#         return sl
+#     else:
+#         return None
 
-def get_fibs(symbol,interval='5m'):
+# def get_fibs(symbol,interval='5m'):
 
-    fib_values=[0,0.236,0.382,0.5,0.618,0.786,1]
-    since_time=binance.fetch_time()-price.convert_to_milliseconds(24)#fetches timestamp for 12 hrs before
-    candles=binance.fetchOHLCV(symbol,interval,since=since_time)
-    highs=list(map(lambda x: x[2],candles))
-    lows=list(map(lambda x: x[3],candles))
-    highest=float(max(highs))
-    lowest=float(min(lows))
-    fib_levels=list(map(lambda x: lowest+(highest-lowest)*x,fib_values))
+#     fib_values=[0,0.236,0.382,0.5,0.618,0.786,1]
+#     since_time=binance.fetch_time()-price.convert_to_milliseconds(24)#fetches timestamp for 12 hrs before
+#     candles=binance.fetchOHLCV(symbol,interval,since=since_time)
+#     highs=list(map(lambda x: x[2],candles))
+#     lows=list(map(lambda x: x[3],candles))
+#     highest=float(max(highs))
+#     lowest=float(min(lows))
+#     fib_levels=list(map(lambda x: lowest+(highest-lowest)*x,fib_values))
 
-    return fib_levels
+#     return fib_levels
 
-def get_tp(buy,symbol,current_price):
-    #get current price
-    fibs=get_fibs(symbol)
-    tp=[]
-    price=current_price
-    # print(binance.decimal_to_precision(price))
-    if buy:
-        tp=list(filter(lambda x: x>1.01*price, fibs))
-    else:
-        tp=list(filter(lambda x: x<0.99*price, fibs))
+# def get_tp(buy,symbol,current_price):
+#     #get current price
+#     fibs=get_fibs(symbol)
+#     tp=[]
+#     price=current_price
+#     # print(binance.decimal_to_precision(price))
+#     if buy:
+#         tp=list(filter(lambda x: x>1.01*price, fibs))
+#     else:
+#         tp=list(filter(lambda x: x<0.99*price, fibs))
 
-    return fibs
+#     return fibs
 
-def get_risk_reward(sl,tp_array,entry):
-    min_reward=min([tp_array[-1],tp_array[0]])
-    risk=abs(sl-entry)
-    return risk/min_reward
+# def get_risk_reward(sl,tp_array,entry):
+#     min_reward=min([tp_array[-1],tp_array[0]])
+#     risk=abs(sl-entry)
+#     return risk/min_reward
 
 #trend analysis
 def get_gradient(ma):

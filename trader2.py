@@ -12,4 +12,4 @@ ftx = ccxt.ftx({
 
 daily=price.get_price_data('1d',symbol='ETH/USD')
 hourly=price.get_price_data('1h',symbol='ETH/USD')
-chart.identify_trend(daily,hourly)
+print(chart.identify_trend(daily,hourly))
