@@ -15,8 +15,8 @@ phemex = ccxt.phemex({
     'enableRateLimit': True,
 })
 ftx = ccxt.ftx({
-    'apiKey': 'BV0P57flrZn0UQcZHNJe05VKO6neDpsqBcuWErBU',
-    'secret': 'C-MIbGDXHAs7PNsg81tdfsyQVegrdA7IKLLN9SDv',
+    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
+    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
     'enableRateLimit': True,
 })
 
@@ -44,7 +44,7 @@ def get_current_price(symbol):
     return (bid+ask)/2
 
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
-def get_price_data(interval, exchange=binance, since=None, symbol=None, data=pd.DataFrame([])): 
+def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.DataFrame([])): 
     weekly=False
     weekly_candles=[]
     if interval=='1w':

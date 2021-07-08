@@ -190,8 +190,8 @@ def get_ema(data,window):
     return pd.DataFrame({'unix': timestamps,'value':ema})
 
 def identify_trend(daily, hourly): #using moving average channel
-    long_ema=get_ema(daily,21)
-    channel=ma_channel(hourly,20)
+    long_ema=get_ema(daily,28)
+    channel=ma_channel(hourly,18)
 
     gradient = get_gradient(long_ema)
     upper_bound=channel.iloc[-1]['high']
