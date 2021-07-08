@@ -1,6 +1,8 @@
 import ccxt
 import price_data as price
 import chart
+import time
+import math
 
 ftx = ccxt.ftx({
     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
@@ -12,9 +14,18 @@ daily=price.get_price_data('1d',symbol='ETH/USD')
 hourly=price.get_price_data('1h',symbol='ETH/USD')
 state=chart.identify_trend(daily,hourly)
 
-while state != 'neutral':
+def new_hour():
+   return int(time.time())/3600 == int(time.time())//3600
+
+
+while state != 'neutral' or not(new_hour()): #wait until the state is neutral before begininning to look for trades
     print('starting conditions not met')
-    pass
+    daily=price.get_price_data('1d',symbol='ETH/USD')
+    hourly=price.get_price_data('1h',symbol='ETH/USD')
+    state=chart.identify_trend(daily,hourly)
+    #it's the start of an hour and there is a neutral trend so the program will do nothing when it starts
+
+print('starting conditions met')
 
 while True:
 
@@ -40,3 +51,4 @@ while True:
         # ftx.create_order('ETH-PERP','market','sell',position_size)
     else:
         print('neutral')
+    time.sleep(3600) #wait until the next hour
