@@ -5,8 +5,20 @@ from binance.exceptions import BinanceAPIException
 account = user.User()
 client=user.client
 
+binance = ccxt.binance({
+    'apiKey': 'HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK',
+    'secret': '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4',
+    'timeout': 30000,
+    'enableRateLimit': True,
+})
+
 phemex = ccxt.phemex({
     'secret' : 'GgWgKUdSCiSirVXS9fmXd4_th-SeXFjMr9g_HmJBgFU2MjQ0ZDMzMy04NmVkLTQ3ZmMtOGNlMC02MDZmZTJjMzEzYWM',
+    'enableRateLimit': True,
+})
+ftx = ccxt.ftx({
+    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
+    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
     'enableRateLimit': True,
 })
 
