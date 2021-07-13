@@ -174,37 +174,42 @@ def ma_channel(data, window):
     sma['unix']=timestamps
     sma.dropna(inplace=True)    
 
-    return pd.DataFrame({'unix':sma['unix'],'high':sma['high'], 'low':sma['low'], 'close':sma['close']})
+    return pd.DataFrame({'unix':sma['unix'],'high':sma['high'], 'low':sma['low'], 'open':sma['open']})
 
-def get_sma(data,window):
+def get_sma(data,window, close=True):
      #using daily for now
     timestamps=data['unix'][window-1:]
-    sma=data.rolling(window).mean()['close'].dropna()
+    if close:
+        sma=data.rolling(window).mean()['close'].dropna()
+    else:
+        sma=data.rolling(window).mean()['open'].dropna()
     return pd.DataFrame({'unix': timestamps,'value':sma})
 
     # return pd.DataFrame({'unix': list(map(lambda x: x[0], sma)),'value':list(map(lambda x: x[1], sma))})
 
-def get_ema(data,window):
+def get_ema(data,window, close=True):
     timestamps=data['unix'][window:]
-    ema=data.ewm(span=window,min_periods=window+1, adjust=False).mean()['close'].dropna()
+    if close:
+        ema=data.ewm(span=window,min_periods=window+1, adjust=False).mean()['close'].dropna()
+    else:
+        ema=data.ewm(span=window,min_periods=window+1, adjust=False).mean()['open'].dropna()
     return pd.DataFrame({'unix': timestamps,'value':ema})
 
-def identify_trend(daily, hourly): #using moving average channel
-    long_ema=get_ema(daily,28)
-    channel=ma_channel(hourly,18)
+def identify_trend(daily, hourly): #using moving average channel and gradient of large timeframe moving average
+    long_ema=get_ema(daily,25,False)
+    channel=ma_channel(hourly,20)
 
     gradient = get_gradient(long_ema)
     upper_bound=channel.iloc[-1]['high']
     lower_bound=channel.iloc[-1]['low']
-    time=channel.iloc[-1]['unix']
-    day=max(filter(lambda x: x <= time,list(gradient.index)))
-    five_closes=hourly.tail(n=5)['close'].values
+    day=max(gradient.index)
+    five_opens=hourly.tail(n=5)['open'].values
     uptrend=gradient.loc[day]>0
-    current=five_closes[-1]
+    current=five_opens[-1]
 
-    if all(close>upper_bound for close in five_closes) and uptrend.all():
+    if all(opens>upper_bound for opens in five_opens) and uptrend.all():
         return 'uptrend'
-    elif all(close<lower_bound for close in five_closes) and not(uptrend.all()):
+    elif all(opens<lower_bound for opens in five_opens) and not(uptrend.all()):
         return 'downtrend'
     else:
         return 'neutral'

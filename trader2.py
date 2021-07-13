@@ -27,6 +27,9 @@ while state != 'neutral' or not(new_hour()): #wait until the state is neutral be
 
 print('starting conditions met')
 
+trade_capital=10
+position_size=trade_capital/hourly.iloc[-1]['close']
+
 while True:
 
     daily=price.get_price_data('1d',symbol='ETH/USD')
@@ -37,18 +40,18 @@ while True:
 
     usd_balance=float(list(filter(lambda x: x['coin']=='USD',ftx.fetch_balance()['info']['result']))[0]['total'])
     position=next(filter(lambda x: x['future']=='ETH-PERP',ftx.fetch_positions()))
-    position_size=trade_capital/hourly.iloc[-1]['close']
 
     if trend == 'uptrend' and state != 'long':
         print('flip long')
-        # if state=='short':#close position
-        #     ftx.create_order('ETH-PERP','market','buy',position_size)
-        # ftx.create_order('ETH-PERP','market','buy',position_size)
+        if state=='short':#close position
+            position_size=position['size']
+            ftx.create_order('ETH-PERP','market','buy',position_size)
+        ftx.create_order('ETH-PERP','market','buy',position_size)
     elif trend == 'downtrend' and state != 'short':
         print('flip short')
-        # if state=='long':#close position
-        #     ftx.create_order('ETH-PERP','market','sell',position_size)
-        # ftx.create_order('ETH-PERP','market','sell',position_size)
+        if state=='long':#close position
+            ftx.create_order('ETH-PERP','market','sell',position_size)
+        ftx.create_order('ETH-PERP','market','sell',position_size)
     else:
         print('neutral')
     time.sleep(3600) #wait until the next hour

@@ -25,9 +25,6 @@ ftx = ccxt.ftx({
 def convert_to_milliseconds(h): #enter time in hours
     return h*3600*1000
 
-def get_current_time(exchange):
-    return exchange.fetch_time()
-
 # returns true if there are no more open orders for 
 def no_symbol_open_orders(symbol):
     orders=list(filter(lambda x: x['symbol']==symbol, open_orders))
@@ -60,10 +57,9 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
     elif symbol !=None:
         try:
                 candles=exchange.fetchOHLCV(symbol,interval,since=since)
-        except:
-            since=get_current_time(exchange)-convert_to_milliseconds(72)
-            candles=exchange.fetchOHLCV(symbol,interval,since=since)
-
+        except: 
+            print('error fetching price')
+            quit()
     if weekly:
         no_full_weeks=len(candles)//7
         for i in range(0,no_full_weeks):
