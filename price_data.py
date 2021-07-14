@@ -1,5 +1,7 @@
+from matplotlib.pyplot import get
 import numpy as np
 import pandas as pd
+from datetime import date
 import ccxt
 from pandas.core.base import DataError
 
@@ -21,6 +23,17 @@ ftx = ccxt.ftx({
 })
 
 #GETTING INFORMATION
+def find_start(candles):
+    start_found=False
+    timestamps=list(map(lambda x:x[0]/1000,candles))
+    index=0
+    while not(start_found):
+        day=date.fromtimestamp(timestamps[index]).weekday()
+        if day==0:
+            start_found=True
+        else:
+            index=index+1
+    return index
 
 def convert_to_milliseconds(h): #enter time in hours
     return h*3600*1000
@@ -61,6 +74,7 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
             print('error fetching price')
             quit()
     if weekly:
+        candles=candles[find_start(candles):]
         no_full_weeks=len(candles)//7
         for i in range(0,no_full_weeks):
             start=i*7
@@ -72,8 +86,8 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
             low = min(list (map(lambda x: x[3], week)))
             close = week[6][4]
             weekly_candles.append((timestamp,open,high,low,close))
-        week_in_progress=candles[no_full_weeks:len(candles)]
-        timestamp = week_in_progress[-1][0]
+        week_in_progress=candles[no_full_weeks*7:len(candles)]
+        timestamp = week_in_progress[0][0]
         open = week[0][1]
         high = max(list(map(lambda x: x[2], week_in_progress)))
         low = min(list (map(lambda x: x[3], week_in_progress)))
@@ -91,4 +105,4 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
 
     return pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
 
-#print(get_price_data('1h',exchange=binance,symbol='ADA/USDT'))
+print(get_price_data('1w',symbol='ETH/USD'))
