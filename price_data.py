@@ -85,7 +85,7 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
             weekly_candles.append((timestamp,open,high,low,close))
         week_in_progress=candles[no_full_weeks*7:len(candles)]
         timestamp = week_in_progress[0][0]
-        open = week[0][1]
+        open = week_in_progress[0][1]
         high = max(list(map(lambda x: x[2], week_in_progress)))
         low = min(list (map(lambda x: x[3], week_in_progress)))
         close = week_in_progress[-1][4]
