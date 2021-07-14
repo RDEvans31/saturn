@@ -22,10 +22,16 @@ ftx = ccxt.ftx({
     'enableRateLimit': True,
 })
 
+def update_csv(symbol,):
+    pass
+
 #GETTING INFORMATION
-def find_start(candles):
+def find_start(candles,api=True):
     start_found=False
-    timestamps=list(map(lambda x:x[0]/1000,candles))
+    if api:
+        timestamps=list(map(lambda x:x[0]/1000,candles))
+    else:
+        timestamps=list(map(lambda x:x[0],candles))
     index=0
     while not(start_found):
         day=date.fromtimestamp(timestamps[index]).weekday()
@@ -70,8 +76,9 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
         except: 
             print('error fetching price')
             quit()
+    candles=candles[find_start(candles,data.empty):]
     if weekly:
-        candles=candles[find_start(candles):]
+        # candles=candles[find_start(candles):]
         no_full_weeks=len(candles)//7
         for i in range(0,no_full_weeks):
             start=i*7
@@ -101,5 +108,3 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
     closes=np.array(list(map(lambda x: x[4], candles)),dtype=float)
 
     return pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
-
-print(get_price_data('1w',symbol='ETH/USD'))
