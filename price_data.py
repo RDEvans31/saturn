@@ -34,11 +34,8 @@ def no_symbol_open_orders(symbol):
         return False
 
 def get_current_price(symbol):
-    orderbook = binance.fetch_order_book (symbol)
-    bid = orderbook['bids'][0][0] if len (orderbook['bids']) > 0 else None
-    ask = orderbook['asks'][0][0] if len (orderbook['asks']) > 0 else None
-    spread = (ask - bid) if (bid and ask) else None
-    return (bid+ask)/2
+    price_data=get_price_data(interval='1m',symbol=symbol)
+    return price_data.iloc[-1]['close']
 
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
 def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.DataFrame([])): 
