@@ -99,9 +99,10 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
         weekly_candles.append((timestamp,open,high,low,close))
 
         candles=weekly_candles
-
-    timestamps=list(map(lambda x: x[0], candles))
-    # timestamp_hr=np.array(list(map(lambda x: (x-timestamps[0])/3600000, timestamps)),dtype=int)
+    if data.empty:
+        timestamps=list(map(lambda x: x[0]/1000, candles))
+    else:
+        timestamps=list(map(lambda x: x[0], candles))
     open_price=np.array(list(map(lambda x: x[1], candles)),dtype=float)
     highest=np.array(list(map(lambda x: x[2], candles)),dtype=float)
     lowest=np.array(list(map(lambda x: x[3], candles)),dtype=float)
