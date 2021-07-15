@@ -4,6 +4,8 @@ import pandas as pd
 from datetime import date
 import ccxt
 from pandas.core.base import DataError
+from gql import gql, Client
+from gql.transport.aiohttp import AIOHTTPTransport
 
 binance = ccxt.binance({
     'apiKey': 'HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK',
@@ -109,3 +111,24 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
     closes=np.array(list(map(lambda x: x[4], candles)),dtype=float)
 
     return pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
+
+# Select your transport with a defined url endpoint
+transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
+
+# Create a GraphQL client using the defined transport
+client = Client(transport=transport, fetch_schema_from_transport=True)
+
+# Provide a GraphQL query
+query = gql(
+    """
+    query MyQuery {
+        BTCUSD_1d {
+            close
+        }
+    }
+"""
+)
+
+# Execute the query on the transport
+result = client.execute(query)
+print(result)
