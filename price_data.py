@@ -7,6 +7,12 @@ from pandas.core.base import DataError
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 
+# Select your transport with a defined url endpoint
+transport = AIOHTTPTransport(url="https://saturn.hasura.app/v1/graphql", headers={'x-hasura-admin-secret': 'Rc07SJt4ryC6RyNXDKFRAtFmRkGBbT8Ez3SdaEYsHQoHemCldvs52Kc803oK8X62'})
+
+# Create a GraphQL client using the defined transport
+client = Client(transport=transport, fetch_schema_from_transport=True)
+
 binance = ccxt.binance({
     'apiKey': 'HrivcVPczKOE6eayp8qFVlLTBPZiaQwcGEKwfE1NhS9cRayfGDKY4n9deCloBYFK',
     'secret': '4VeFwan8dla9tUdMlg2G0SThcQi9g6XHLg0X6awPnTnG7Sr4ekADGdg8bN24jmE4',
@@ -24,9 +30,6 @@ ftx = ccxt.ftx({
     'enableRateLimit': True,
 })
 
-def update_csv(symbol,):
-    pass
-
 #GETTING INFORMATION
 def find_start(candles,api=True):
     start_found=False
@@ -39,7 +42,7 @@ def find_start(candles,api=True):
         day=date.fromtimestamp(timestamps[index]).weekday()
         if day==0:
             start_found=True
-        else:
+        else:   
             index=index+1
     return index
 
@@ -55,15 +58,77 @@ def no_symbol_open_orders(symbol):
         return False
 
 def get_current_price(symbol):
-    price_data=get_price_data(interval='1m',symbol=symbol)
+    price_data=get_price_data(timeframe='1m',symbol=symbol)
     return price_data.iloc[-1]['close']
 
+def get_stored_data(symbol,timeframe):
+    # Provide a GraphQL query
+    split_symbol=symbol.split('/')
+    base_currency=split_symbol[0]
+    quote_currency=split_symbol[1]
+    table=base_currency+quote_currency+'_'+timeframe
+    if table=='BTCUSD_1d':
+        query = gql(
+            """
+            query MyQuery {
+                BTCUSD_1d {
+                    unix
+                    close
+                    high
+                    low
+                    open
+                }
+            }
+        """
+        )
+    elif table=='ETHUSD_1d':
+        query = gql(
+            """
+            query MyQuery {
+                ETHUSD_1d {
+                    unix
+                    close
+                    high
+                    low
+                    open
+                }
+            }
+        """
+        )
+    elif table=='ETHBTC_1d':
+        query = gql(
+            """
+            query MyQuery {
+                ETHBTC_1d {
+                    unix
+                    close
+                    high
+                    low
+                    open
+                }
+            }
+        """
+        )
+    else:
+        return 'no such table'
+
+    # Execute the query on the transport
+    candles = client.execute(query)[table]
+    df=pd.DataFrame({},columns=['unix','close','high','low','open'])
+    for candle in candles:
+        df=df.append(candle,ignore_index=True)
+
+    return df.sort_values(by=['unix'], ignore_index=True)
+
+    return result
+    
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
-def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.DataFrame([])): 
+def get_price_data(timeframe, exchange=ftx, since=None, symbol=None, data=pd.DataFrame([])): 
+    
     weekly=False
     weekly_candles=[]
-    if interval=='1w':
-        interval='1d'
+    if timeframe=='1w':
+        timeframe='1d'
         weekly=True
 
     if not(data.empty):
@@ -74,7 +139,7 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
 
     elif symbol !=None:
         try:
-                candles=exchange.fetchOHLCV(symbol,interval,since=since)
+                candles=exchange.fetchOHLCV(symbol,timeframe,since=since)
         except: 
             print('error fetching price')
             quit()
@@ -102,7 +167,7 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
 
         candles=weekly_candles
     if data.empty:
-        timestamps=list(map(lambda x: x[0]/1000, candles))
+        timestamps=list(map(lambda x: x[0], candles))
     else:
         timestamps=list(map(lambda x: x[0], candles))
     open_price=np.array(list(map(lambda x: x[1], candles)),dtype=float)
@@ -110,25 +175,18 @@ def get_price_data(interval, exchange=ftx, since=None, symbol=None, data=pd.Data
     lowest=np.array(list(map(lambda x: x[3], candles)),dtype=float)
     closes=np.array(list(map(lambda x: x[4], candles)),dtype=float)
 
-    return pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
+    df=pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
 
-# Select your transport with a defined url endpoint
-transport = AIOHTTPTransport(url="https://countries.trevorblades.com/")
+    #updating stored_data
+    stored_data=get_stored_data(symbol, timeframe)
+    print('before: ',stored_data)
+    max_timestamp=stored_data['unix'].max()
+    stored_data.drop(stored_data['unix'].idxmax(), inplace=True)
+    print('after: ',stored_data)
+    missing_data=df.loc[df['unix']>=max_timestamp]
 
-# Create a GraphQL client using the defined transport
-client = Client(transport=transport, fetch_schema_from_transport=True)
 
-# Provide a GraphQL query
-query = gql(
-    """
-    query MyQuery {
-        BTCUSD_1d {
-            close
-        }
-    }
-"""
-)
+    return df
 
-# Execute the query on the transport
-result = client.execute(query)
-print(result)
+
+
