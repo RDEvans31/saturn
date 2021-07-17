@@ -60,5 +60,4 @@ schedule.every().hour.do(run)
 
 while True:
     schedule.run_pending()
-
-     #wait until the next hour
+    #scheduled to run the job every hour
