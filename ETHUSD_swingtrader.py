@@ -3,6 +3,7 @@ import price_data as price
 import chart
 import time
 import math
+import schedule
 
 ftx = ccxt.ftx({
     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
@@ -12,7 +13,7 @@ ftx = ccxt.ftx({
 
 daily=price.get_price_data('1d',symbol='ETH/USD')
 hourly=price.get_price_data('1h',symbol='ETH/USD')
-state=chart.identify_trend(daily,hourly)
+state=chart.identify_trend(daily,hourly) #MANUALLY CHANGE IF CURRENLT HAS OPEN POSITION
 
 def new_hour():
    return int(time.time())/3600 == int(time.time())//3600
@@ -29,17 +30,17 @@ print('starting conditions met')
 
 trade_capital=10
 position_size=trade_capital/hourly.iloc[-1]['close']
+precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx.fetch_markets()))['precision']['amount']))))
+position_size=round(position_size,precision)
 
-while True:
-
+def run():
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     trend=chart.identify_trend(daily,hourly)
 
-    trade_capital=10
-
     usd_balance=float(list(filter(lambda x: x['coin']=='USD',ftx.fetch_balance()['info']['result']))[0]['total'])
     position=next(filter(lambda x: x['future']=='ETH-PERP',ftx.fetch_positions()))
+    position_size=round(float(position['size'],precision)
 
     if trend == 'uptrend' and state != 'long':
         print('flip long')
@@ -54,4 +55,10 @@ while True:
         ftx.create_order('ETH-PERP','market','sell',position_size)
     else:
         print('neutral')
-    time.sleep(3600) #wait until the next hour
+
+schedule.every().hour.do(run)
+
+while True:
+    schedule.run_pending()
+
+     #wait until the next hour

@@ -135,29 +135,34 @@ def get_minima(data, range_param=3):
     else:
         return None
 
-def get_generic_maxima(dataframe, metric_column, range_param=1): #assumes dataframe[metric column] is unique
-    metric=str(metric_column)
-    n=len(dataframe.index)
-    if n>0:
-        peak_indices = find_peaks(np.array(dataframe[metric]))[0].tolist()
-        peaks_df = dataframe.iloc[peak_indices]
-        # peaks=[]
-        # for i in range(3,n):
-        #     current_series=dataframe.iloc[i]
-        #     domain_range=min([n-1-i,range_param])
-        #     subset=[]
-        #     if domain_range==range_param:
-        #         subset=dataframe.iloc[i-range_param:i+range_param+1]
-        #     else:
-        #         subset=dataframe.iloc[i-range_param:i+domain_range+1]
+def get_rsi(candles, periods=14):
+    close_delta = candles['close'].diff()
 
-        #     if current_series[]==subset['high'].max():
-        #         peaks.append(current_series)
-     
-        # peaks_df=pd.DataFrame(data=peaks,columns=list(dataframe.columns))
-        return peaks_df#.sort_values(ascending=False)
-    else:
-        return None
+    # Make two series: one for lower closes and one for higher closes
+    up = close_delta.clip(lower=0)
+    down = -1 * close_delta.clip(upper=0)
+    
+    # Use exponential moving average
+    ma_up = up.ewm(com = periods - 1, adjust=True, min_periods = periods).mean()
+    ma_down = down.ewm(com = periods - 1, adjust=True, min_periods = periods).mean()
+        
+    rsi = ma_up / ma_down
+    rsi = 100 - (100/(1 + rsi))
+    return rsi
+
+def get_atr(candles,periods=14):
+    tr=[]
+    for i in range(len(candles)):
+        candle=candles.iloc[i]
+        high=candle['high']
+        low=candle['low']
+        close=candle['close']
+        true_range=max([high-low,abs(high-close),abs(close-low)])
+        tr.append(true_range)
+    tr=pd.Series(tr)
+    atr = tr.rolling(window=periods).mean()
+
+    return atr
 
 def get_support_resistance(price_data):
     maxima=get_maxima(price_data,1)

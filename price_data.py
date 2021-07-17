@@ -1,4 +1,3 @@
-from matplotlib.pyplot import get
 import numpy as np
 import pandas as pd
 from datetime import date
@@ -6,6 +5,7 @@ import ccxt
 from pandas.core.base import DataError
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
+import asyncio
 
 # Select your transport with a defined url endpoint
 transport = AIOHTTPTransport(url="https://saturn.hasura.app/v1/graphql", headers={'x-hasura-admin-secret': 'Rc07SJt4ryC6RyNXDKFRAtFmRkGBbT8Ez3SdaEYsHQoHemCldvs52Kc803oK8X62'})
@@ -31,15 +31,12 @@ ftx = ccxt.ftx({
 })
 
 #GETTING INFORMATION
-def find_start(candles,api=True):
+def find_start(candles):
     start_found=False
-    if api:
-        timestamps=list(map(lambda x:x[0]/1000,candles))
-    else:
-        timestamps=list(map(lambda x:x[0],candles))
+    timestamps=list(map(lambda x:x[0],candles))
     index=0
     while not(start_found):
-        day=date.fromtimestamp(timestamps[index]).weekday()
+        day=date.fromtimestamp(timestamps[index]/1000).weekday()
         if day==0:
             start_found=True
         else:   
@@ -113,7 +110,8 @@ def get_stored_data(symbol,timeframe):
         return 'no such table'
 
     # Execute the query on the transport
-    candles = client.execute(query)[table]
+    result = client.execute(query)
+    candles=result[table]
     df=pd.DataFrame({},columns=['unix','close','high','low','open'])
     for candle in candles:
         df=df.append(candle,ignore_index=True)
@@ -139,13 +137,13 @@ def get_price_data(timeframe, exchange=ftx, since=None, symbol=None, data=pd.Dat
 
     elif symbol !=None:
         try:
-                candles=exchange.fetchOHLCV(symbol,timeframe,since=since)
+            candles=exchange.fetchOHLCV(symbol,timeframe,since=since)
         except: 
             print('error fetching price')
             quit()
-    candles=candles[find_start(candles,data.empty):]
     if weekly:
-        # candles=candles[find_start(candles):]
+        start=find_start(candles)
+        candles=candles[start:]
         no_full_weeks=len(candles)//7
         for i in range(0,no_full_weeks):
             start=i*7
@@ -166,10 +164,7 @@ def get_price_data(timeframe, exchange=ftx, since=None, symbol=None, data=pd.Dat
         weekly_candles.append((timestamp,open,high,low,close))
 
         candles=weekly_candles
-    if data.empty:
-        timestamps=list(map(lambda x: x[0], candles))
-    else:
-        timestamps=list(map(lambda x: x[0], candles))
+    timestamps=list(map(lambda x: x[0], candles))
     open_price=np.array(list(map(lambda x: x[1], candles)),dtype=float)
     highest=np.array(list(map(lambda x: x[2], candles)),dtype=float)
     lowest=np.array(list(map(lambda x: x[3], candles)),dtype=float)
@@ -177,16 +172,99 @@ def get_price_data(timeframe, exchange=ftx, since=None, symbol=None, data=pd.Dat
 
     df=pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
 
-    #updating stored_data
-    stored_data=get_stored_data(symbol, timeframe)
-    print('before: ',stored_data)
-    max_timestamp=stored_data['unix'].max()
-    stored_data.drop(stored_data['unix'].idxmax(), inplace=True)
-    print('after: ',stored_data)
-    missing_data=df.loc[df['unix']>=max_timestamp]
-
-
     return df
 
+def get_missing_data(symbol,timeframe):
+    old_data=get_stored_data(symbol, timeframe)
+    new_data=get_price_data(timeframe,symbol=symbol)
+    max_timestamp=old_data['unix'].max()
+    missing_data=new_data.loc[new_data['unix']>=max_timestamp]
+    return missing_data
 
+def update_database(symbol,timeframe):
 
+    missing_data=get_missing_data(symbol, timeframe)
+
+    split_symbol=symbol.split('/')
+    base_currency=split_symbol[0]
+    quote_currency=split_symbol[1]
+    table=base_currency+quote_currency+'_'+timeframe
+
+    if table=='BTCUSD_1d':
+        query = gql(
+            """
+              mutation AddCandle ( $unix: numeric, $close: numeric, $high: numeric, $low: numeric, $open: numeric ){
+                insert_BTCUSD_1d(objects: { unix: $unix, close: $close, high: $high, low: $low, open: $open }){
+                    affected_rows
+                }
+            }
+        """
+        )
+
+        delete= gql(
+            """
+              mutation DeleteCandle ( $unix: numeric ){
+                delete_BTCUSD_1d(where: { unix: {_eq: $unix} } ){
+                    affected_rows
+                }
+            }
+        """
+        )
+        params={"unix": missing_data.iloc[0]['unix']}
+        print(client.execute(delete,variable_values=params))
+    elif table=='ETHUSD_1d':
+        #
+        query = gql(
+            """
+              mutation AddCandle ( $unix: numeric, $close: numeric, $high: numeric, $low: numeric, $open: numeric ){
+                insert_ETHUSD_1d(objects: { unix: $unix, close: $close, high: $high, low: $low, open: $open }){
+                    affected_rows
+                }
+            }
+        """
+        )
+
+        delete= gql(
+            """
+              mutation DeleteCandle ( $unix: numeric ){
+                delete_ETHUSD_1d(where: { unix: {_eq: $unix} } ){
+                    affected_rows
+                }
+            }
+        """
+        )
+        params={"unix": missing_data.iloc[0]['unix']}
+        print(client.execute(delete,variable_values=params))
+
+    elif table=='ETHBTC_1d':
+        query = gql(
+            """
+              mutation AddCandle ( $unix: numeric, $close: numeric, $high: numeric, $low: numeric, $open: numeric ){
+                insert_ETHBTC_1d(objects: { unix: $unix, close: $close, high: $high, low: $low, open: $open }){
+                    affected_rows
+                }
+            }
+        """
+        )
+
+        delete= gql(
+            """
+              mutation DeleteCandle ( $unix: numeric ){
+                delete_ETHBTC_1d(where: { unix: {_eq: $unix} } ){
+                    affected_rows
+                }
+            }
+        """
+        )
+        params={"unix": missing_data.iloc[0]['unix']}
+        print(client.execute(delete,variable_values=params))
+    else:
+        return 'no such table'
+    #the first of the missing data is the complete candle of the last value (which is incomplete at the time of fetching)
+    # we need to delete it
+
+    for i in range(0,len(missing_data)):
+        candle=missing_data.iloc[i]
+        params={"unix": candle['unix'], "close": candle['close'], "high": candle['high'], "low": candle['low'], "open": candle["open"]}
+        print(client.execute(query, variable_values=params))
+    
