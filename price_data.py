@@ -136,11 +136,16 @@ def get_price_data(timeframe, exchange=ftx, since=None, symbol=None, data=pd.Dat
             candles.append((candle['unix'],candle['open'], candle['high'],candle['low'], candle['close']))
 
     elif symbol !=None:
-        try:
-            candles=exchange.fetchOHLCV(symbol,timeframe,since=since)
-        except: 
-            print('error fetching price')
-            quit()
+        candles_retrieved=False
+        while not(candles_retrieved):
+            try:
+                candles=exchange.fetchOHLCV(symbol,timeframe,since=since)
+                candles_retrieved=True
+            except Exception as e: 
+                print('error fetching price')
+                print(str(e))
+            print('retrying')
+            
     if weekly:
         start=find_start(candles)
         candles=candles[start:]
