@@ -42,11 +42,7 @@ class Trade:
         self.entry_id = self.trade_id+"entry"
         self.sl_id = self.trade_id+"stoploss"
         self.tp_id = self.trade_id+"tp"     
-        
-        total_balance=account.futures_account.usdt_balance
-        proposed_amount=0.01*(total_balance)/abs(self.entry-self.sl)
-        capital_risked=round(0.1*total_balance)
-        self.leverage=math.floor(proposed_amount/(capital_risked*self.entry))
+    
         
 
         #should check whether there is enough free
