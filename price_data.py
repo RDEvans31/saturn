@@ -1,3 +1,4 @@
+from calendar import calendar
 import numpy as np
 import pandas as pd
 from datetime import date
@@ -141,10 +142,10 @@ def get_price_data(timeframe, exchange=ftx, since=None, symbol=None, data=pd.Dat
             try:
                 candles=exchange.fetchOHLCV(symbol,timeframe,since=since)
                 candles_retrieved=True
-            except Exception as e: 
+            except: 
                 print('error fetching price')
-                print(str(e))
-            print('retrying')
+            if not(candles_retrieved):
+                print('retrying')
             
     if weekly:
         start=find_start(candles)

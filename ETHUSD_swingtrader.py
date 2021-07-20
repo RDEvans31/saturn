@@ -82,7 +82,7 @@ def run():
     time.sleep(time_till_next_hour-5)
 
 schedule.every().minute.at(":01").do(check_starting_conditions)
-while state!='neutral':
+while state!='neutral' and position_size==0.0:
     schedule.run_pending()
     #scheduled to run the job every hour
 print('starting')
