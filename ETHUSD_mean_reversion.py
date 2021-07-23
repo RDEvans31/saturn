@@ -1,79 +1,124 @@
 import ccxt
 import price_data as price
-import pandas as pd
 import chart
 import time
-import math
+import schedule
+import numpy as np
+from datetime import datetime
+from ftx_client import FtxClient
 
-# import schedule
-
-class Trade:
-    def __init__(self,time,side,tp,entry,sl):
-        self.time=time
-        self.side=side
-        self.tp=tp
-        self.sl=sl
-        self.entry=entry
-
-    def __str__(self):
-        return " % s @ % s, tp: % s, entry: % s, sl: % s " % (self.side, self.time, self.tp, self.entry, self.sl) 
-
-ftx = ccxt.ftx({
+ftx_ccxt = ccxt.ftx({
     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
     'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
     'enableRateLimit': True,
 })
 
+main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B')
+Savings=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Savings')
+MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='MeanReversion')
 
-# trade_capital=10
-# position_size=trade_capital/minute.iloc[-1]['close']
 
-def engulfing(candles):
-    previous_two=candles.iloc[-3:-1]
-    candle1=previous_two.iloc[0]
-    candle2=previous_two.iloc[1]
-    if candle1['close']<candle1['open'] and candle2['close']>candle2['open'] and abs(candle2['close']-candle2['open'])>abs(candle1['close']-candle1['open']):
-        return 'bullish'
-    elif candle1['close']>candle1['open'] and candle2['close']<candle2['open'] and abs(candle2['close']-candle2['open'])>abs(candle1['close']-candle1['open']):
-        return 'bearish'
-    else:
-        return 'not engulfing'
+# def append_new_line(file_name, text_to_append):
+#     """Append given text as a new line at the end of file"""
+#     # Open the file in append & read mode ('a+')
+#     with open(file_name, "a+") as file_object:
+#         # Move read cursor to the start of file.
+#         file_object.seek(0)
+#         # If file is not empty then append '\n'
+#         data = file_object.read(100)
+#         if len(data) > 0:
+#             file_object.write("\n")
+#         # Append text at the end of file
+#         file_object.write(text_to_append)
 
-def trade_conditions(candles,ema,rsi):
-    current_price=candles[-1]['close']
-    if current_price>ema and engulfing(candles)=='bullish' and rsi>50:
-        return 'long'
-    elif current_price<ema and engulfing(candles)=='bearish' and rsi<50:
-        return 'short'
+# position=next(filter(lambda x: x['future']=='ETH-PERP',ftx_ccxt.fetch_positions()))
+# position_size=float(position['size'])
+# if position_size==0:
+#     print('No position, starting state: neutral')
+#     precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx_ccxt.fetch_markets()))['precision']['amount']))))
+#     daily=price.get_price_data('1d',symbol='ETH/USD')
+#     hourly=price.get_price_data('1h',symbol='ETH/USD')
+#     state=chart.identify_trend(daily,hourly)
+#     trade_capital=float(input("Enter trade capital= "))
 
+# elif position['side']=='buy':
+#     print('starting state: long')
+#     state='long'
+# elif position['side']=='sell':
+#     print('starting state: short')
+#     state='short'
+
+# def new_hour():
+#    return int(time.time())/3600 == int(time.time())//3600
+
+# def check_starting_conditions():
+#     global state
+#     print('Checking starting conditions')
+#     hourly=price.get_price_data('1h',symbol='ETH/USD')
+#     if state=='neutral':
+#         state=chart.identify_trend(daily,hourly) #MANUALLY CHANGE IF CURRENLT HAS OPEN POSITION
+#     if (state!='neutral' and position_size==0.0):
+#         print('starting conditions not met')
+#     else:
+#         return schedule.CancelJob
+
+
+
+# def run():
+#     global state
+    # print(datetime.now())
+    # daily=price.get_price_data('1d',symbol='ETH/USD')
+    # hourly=price.get_price_data('1h',symbol='ETH/USD')
+    # trend=chart.identify_trend(daily,hourly)
+    # current_price=hourly.iloc[-1]['close']
+    # usd_balance=float(list(filter(lambda x: x['coin']=='USD',ftx_ccxt.fetch_balance()['info']['result']))[0]['total'])
+    # position=next(filter(lambda x: x['future']=='ETH-PERP',ftx_ccxt.fetch_positions()))
+    # position_size=float(position['size'])
+    # if position_size==0:
+    #     position_size=trade_capital/current_price
+    #     position_size=round(position_size,precision)
+    #     print('new position size= ', position_size)
+
+    # if trend == 'uptrend' and state != 'long':
+        
+    #     output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+    #     print('flip long @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
+    #     if state=='short':#close position
+    #         ftx.create_order('ETH-PERP','market','buy',position_size)
+    #     ftx.create_order('ETH-PERP','market','buy',position_size)
+    #     state='long'
+    # elif trend == 'downtrend' and state != 'short':
+    #     output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+    #     print('flip short @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
+    #     if state=='long':#close position
+    #         ftx.create_order('ETH-PERP','market','sell',position_size)
+    #     ftx.create_order('ETH-PERP','market','sell',position_size)
+    #     state='short'
+
+    # else:
+    #     output_string=''
+    #     print('no change')
+    # if output_string!='':
+    #     append_new_line('ETH_swingtrader_log.txt',output_string)
+    # print("Current price: ",str(current_price))
     
+    # time_till_next_hour=3600-time.time()%3600
+    # time.sleep(time_till_next_hour-5)
 
-def run():
-    minute=price.get_price_data('1m',symbol='BTC/USD')
-    ema=chart.get_ema(200)
-    
+# schedule.every().minute.at(":01").do(check_starting_conditions)
+# while state!='neutral' and position_size==0.0:
+#     schedule.run_pending()
+#     #scheduled to run the job every hour
+# print('starting')
+# schedule.clear()
+# #sleep until just before the next hour
+# sleeping_time=3600-time.time()%3600 -5
+# print('sleeping for ', round(sleeping_time/60))
+# time.sleep(sleeping_time)
+# schedule.every().hour.at("00:01").do(run)
+# while True:
+#     schedule.run_pending()
 
 
-while True:
-    minute=price.get_price_data('1m',symbol='BTC/USD')
-    current_time=time.time()
-    datetime=pd.to_datetime(current_time, unit='ms')
-    current_price=minute.iloc[-1]['close']
-    rsi=chart.get_rsi(minute,20).iloc[-1]
-    ema=chart.get_rsi(minute,200).iloc[-1]
-    atr=chart.get_atr(minute).iloc[-1]
-    if trade_conditions(minute,ema,rsi)=='long':
-        entry=current_price
-        tp=entry+4*atr
-        sl=entry-2*atr
-        trade=Trade(datetime,'buy',tp,entry,sl)
-        print(trade)
-    elif trade_conditions(minute,ema,rsi)=='short':
-        entry=current_price
-        tp=entry-4*atr
-        sl=entry+2*atr
-        trade=Trade(datetime,'sell',tp,entry,sl)
-        print(trade)
-    time.sleep(61-(round(time.time(),0))%60)
-
+print(ftx_ccxt.fetch_balance())
 
