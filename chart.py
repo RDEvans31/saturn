@@ -152,6 +152,7 @@ def get_rsi(candles, periods=14):
 
 def get_atr(candles,periods=14):
     tr=[]
+    index=[]
     for i in range(len(candles)):
         candle=candles.iloc[i]
         high=candle['high']
@@ -159,10 +160,20 @@ def get_atr(candles,periods=14):
         close=candle['close']
         true_range=max([high-low,abs(high-close),abs(close-low)])
         tr.append(true_range)
-    tr=pd.Series(tr)
+        index.append(candle['unix'])
+    tr=pd.Series(tr, index=index)
     atr = tr.rolling(window=periods).mean()
 
     return atr
+
+def get_bb(data,period,multiple): #based on opening prices
+    timestamps=data['unix'].iloc[period-1:]
+    ma=data.rolling(period)['open'].mean().dropna()
+    std=data.rolling(period)['open'].std().dropna()
+    upper_bb=ma+multiple*std
+    lower_bb=ma-multiple*std
+
+    return pd.DataFrame({'unix':timestamps, 'ma': ma, 'upper':upper_bb,'lower':lower_bb})
 
 def get_support_resistance(price_data):
     maxima=get_maxima(price_data,1)
