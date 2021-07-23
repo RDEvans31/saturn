@@ -30,6 +30,7 @@ ftx = ccxt.ftx({
 
 def engulfing(candles):
     previous_two=candles.iloc[-3:-1]
+    print(previous_two)
     candle1=previous_two.iloc[0]
     candle2=previous_two.iloc[1]
     if candle1['close']<candle1['open'] and candle2['close']>candle2['open'] and abs(candle2['close']-candle2['open'])>abs(candle1['close']-candle1['open']):
@@ -39,8 +40,7 @@ def engulfing(candles):
     else:
         return 'not engulfing'
 
-def trade_conditions(candles,ema,rsi):
-    current_price=candles[-1]['close']
+def trade_conditions(candles,current_price,ema,rsi):
     if current_price>ema and engulfing(candles)=='bullish' and rsi>50:
         return 'long'
     elif current_price<ema and engulfing(candles)=='bearish' and rsi<50:
@@ -57,23 +57,24 @@ def run():
 while True:
     minute=price.get_price_data('1m',symbol='BTC/USD')
     current_time=time.time()
-    datetime=pd.to_datetime(current_time, unit='ms')
+    datetime=pd.to_datetime(current_time, unit='s')
+    print('Checked @ ', datetime)
     current_price=minute.iloc[-1]['close']
     rsi=chart.get_rsi(minute,20).iloc[-1]
     ema=chart.get_rsi(minute,200).iloc[-1]
     atr=chart.get_atr(minute).iloc[-1]
-    if trade_conditions(minute,ema,rsi)=='long':
+    if trade_conditions(minute,current_price,ema,rsi)=='long':
         entry=current_price
         tp=entry+4*atr
         sl=entry-2*atr
         trade=Trade(datetime,'buy',tp,entry,sl)
         print(trade)
-    elif trade_conditions(minute,ema,rsi)=='short':
+    elif trade_conditions(minute,current_price,ema,rsi)=='short':
         entry=current_price
         tp=entry-4*atr
         sl=entry+2*atr
         trade=Trade(datetime,'sell',tp,entry,sl)
         print(trade)
-    time.sleep(61-(round(time.time(),0))%60)
+    time.sleep(60-(round(time.time(),0))%60)
 
 
