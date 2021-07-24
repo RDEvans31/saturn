@@ -69,10 +69,10 @@ if position_size==0:
     position_size=round(trade_capital/hourly.iloc[-1]['close'],precision)
 
 elif position['side']=='buy':
-    string = "long from % s, current PnL: % s" % (entry, PnL) 
+    string = "long from % s, current PnL: % s" % (entry, PnL)
     state='long'
 elif position['side']=='sell':
-    string = "short from % s, current PnL: % s" % (entry, PnL) 
+    string = "short from % s, current PnL: % s" % (entry, PnL)
     state='short'
 
 print(string)
@@ -94,7 +94,7 @@ def run():
     PnL=float(position['recentPnl'])
 
     if trend == 'uptrend' and state != 'long':
-        
+
         output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
         print('flip long @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
         if state=='short':#close position
@@ -105,9 +105,9 @@ def run():
                 amount=0.2*profit*balance
                 transfer_to_savings(amount)
             trade_capital=get_balance()*1.5
-        
-        position_size=round(trade_capital/current_price,precision)    
-                
+
+        position_size=round(trade_capital/current_price,precision)
+
         ftx.create_order('ETH-PERP','market','buy',position_size)
         state='long'
         entry=current_price
@@ -122,8 +122,8 @@ def run():
                 amount=0.2*profit*balance
                 transfer_to_savings(amount)
             trade_capital=get_balance()*1.5
-        
-        position_size=round(trade_capital/current_price,precision)  
+
+        position_size=round(trade_capital/current_price,precision)
 
         ftx.create_order('ETH-PERP','market','sell',position_size)
         state='short'
@@ -134,8 +134,8 @@ def run():
         print('no change. state: ' ,state)
     if output_string!='':
         append_new_line('ETH_swingtrader_log.txt',output_string)
-    print("Current price: ",str(current_price))
-    
+    print("Current price: % s, PnL: % s" % (str(current_price),PnL))
+
     time_till_next_hour=3600-time.time()%3600
     time.sleep(time_till_next_hour-5)
 
