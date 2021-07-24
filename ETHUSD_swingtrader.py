@@ -76,6 +76,7 @@ elif position['side']=='sell':
 
 def run():
     global state
+    global trade_capital
     entry=None
     print(datetime.now())
     daily=price.get_price_data('1d',symbol='ETH/USD')
