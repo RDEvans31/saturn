@@ -55,11 +55,9 @@ def check_starting_conditions():
 
 
 position=main.get_position('ETH-PERP',True)
-entry=float(position['recentBreakEvenPrice'])
-position_size=float(position['size'])
-PnL=float(position['recentPnl'])
 
-if position_size==0:
+
+if position==None:
     string = 'No position, starting state: neutral'
     precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx.fetch_markets()))['precision']['amount']))))
     daily=price.get_price_data('1d',symbol='ETH/USD')
@@ -69,9 +67,15 @@ if position_size==0:
     position_size=round(trade_capital/hourly.iloc[-1]['close'],precision)
 
 elif position['side']=='buy':
+    entry=float(position['recentBreakEvenPrice'])
+    position_size=float(position['size'])
+    PnL=float(position['recentPnl'])
     string = "long from % s, current PnL: % s" % (entry, PnL)
     state='long'
 elif position['side']=='sell':
+    entry=float(position['recentBreakEvenPrice'])
+    position_size=float(position['size'])
+    PnL=float(position['recentPnl'])
     string = "short from % s, current PnL: % s" % (entry, PnL)
     state='short'
 
