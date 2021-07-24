@@ -124,7 +124,7 @@ def run():
 
     else:
         output_string=''
-        print('no change')
+        print('no change. state: ' ,state)
     if output_string!='':
         append_new_line('ETH_swingtrader_log.txt',output_string)
     print("Current price: ",str(current_price))
