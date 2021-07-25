@@ -91,16 +91,34 @@ def run():
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     trend=chart.identify_trend(daily,hourly)
     current_price=hourly.iloc[-1]['close']
+    #for taking small profits
+    bb=chart.get_bb(hourly,20,2.5).iloc[-1]
+    short_term_gradient=chart.get_gradient(chart.get_sma(hourly,20,False)).iloc[-1]
 
     position=main.get_position('ETH-PERP',True)
     entry=float(position['recentBreakEvenPrice'])
     position_size=float(position['size'])
     PnL=float(position['recentPnl'])
+    percentage_profit=(PnL/trade_capital)*100
+
+    #check if profits need to be taken
+    if state=='long':
+        if (short_term_gradient>0).all() and (bb['upper']<current_price).all() and percentage_profit>5:
+            ftx.create_order('ETH-PERP','market','sell',0.1*position_size)
+            position=main.get_position('ETH-PERP',True)
+            position_size=float(position['size'])
+            output_string='Profit taken'
+    elif state=='short':
+        if (short_term_gradient<0).all() and (bb['lower']>current_price).all() and percentage_profit>5:
+            ftx.create_order('ETH-PERP','market','buy',0.1*position_size)
+            position=main.get_position('ETH-PERP',True)
+            position_size=float(position['size'])
+            output_string='Profit taken'
+
 
     if trend == 'uptrend' and state != 'long':
 
         output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-        print('flip long @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
         if state=='short':#close position
             ftx.create_order('ETH-PERP','market','buy',position_size)
             profit=1-current_price/entry
@@ -115,9 +133,9 @@ def run():
         ftx.create_order('ETH-PERP','market','buy',position_size)
         state='long'
         entry=current_price
+
     elif trend == 'downtrend' and state != 'short':
         output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-        print('flip short @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
         if state=='long':#close position
             ftx.create_order('ETH-PERP','market','sell',position_size)
             profit=current_price/entry - 1
@@ -137,6 +155,7 @@ def run():
         output_string=''
         print('no change. state: ' ,state)
     if output_string!='':
+        print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
     print("Current price: % s, PnL: % s" % (str(current_price),PnL))
 
