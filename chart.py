@@ -72,9 +72,12 @@ def risk_indicator(fast,slow):
 
     trimmed_fast=fast.loc[fast['unix']>=min_timestamp]
     slow=slow.loc[slow['unix']>=min_timestamp]
-    if len(trimmed_fast)>len(slow):
+    if len(trimmed_fast)>len(slow): 
         #different values, ie using a daily for fast and weekly for slow
-        print(trimmed_fast['unix'].max()-slow['unix'].max())
+        if (slow['unix'].max()<trimmed_fast['unix'].max()):
+            print('true')
+            #add another value to the slow moving avarage to facilitate interpolation
+            slow=slow.append({'unix': trimmed_fast['unix'].max(), 'value':slow.iloc[-1]['value']},ignore_index=True)
         f=interp1d(slow['unix'],slow['value'])
         slow_interpolated=f(trimmed_fast['unix'])
         slow=pd.DataFrame({'unix':trimmed_fast['unix'],'value':slow_interpolated})
