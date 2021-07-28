@@ -49,8 +49,8 @@ def check_close_trade(state,current_price,current_bollinger_bands): #returns boo
     return False,''
 
 position=MeanReversion.get_position('ETH-PERP',True)
-
-if position==None:
+position_size=float(position['size'])
+if position_size!=0:
     print('No position, starting state: neutral')
     precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx_ccxt.fetch_markets()))['precision']['amount']))))
     daily=price.get_price_data('1d',symbol='ETH/USD')
@@ -82,10 +82,10 @@ def run():
     current_gradient=ma_gradient.iloc[-1]
 
     position=MeanReversion.get_position('ETH-PERP',True)
-    active_trade=position!=None
+    position_size=float(position['size'])
+    active_trade=position_size!=0
 
     if active_trade:
-      position_size=float(position['size'])
       PnL=float(position['recentPnl'])
       entry=float(position['recentBreakEvenPrice'])
       #check for conditions to close trade
@@ -99,8 +99,8 @@ def run():
         print('Trade still active')
     
     else:
-      position_size=round((get_balance()*1.5)/current_price,precision)
-      if current_gradient>0 and current_price>upper_limit:
+      position_size=0.01#round((get_balance()*1.5)/current_price,precision)
+      if current_gradient>0 and current_price<lower_limit:
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
           print('long @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
           ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
@@ -111,7 +111,7 @@ def run():
           if (risk<=0.03):
             MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',limit_price=sl,trigger_price=trigger)
             state='long'
-      elif current_gradient<0 and current_price<lower_limit:
+      elif current_gradient<0 and current_price>upper_limit:
           output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
           print('short @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
           ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
