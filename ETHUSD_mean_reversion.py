@@ -50,7 +50,7 @@ def check_close_trade(state,current_price,current_bollinger_bands): #returns boo
 
 position=MeanReversion.get_position('ETH-PERP',True)
 position_size=float(position['size'])
-if position_size!=0:
+if position_size==0:
     print('No position, starting state: neutral')
     precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx_ccxt.fetch_markets()))['precision']['amount']))))
     daily=price.get_price_data('1d',symbol='ETH/USD')
@@ -97,7 +97,7 @@ def run():
         active_trade=False
       else:
         print('Trade still active')
-    
+
     else:
       position_size=0.01#round((get_balance()*1.5)/current_price,precision)
       if current_gradient>0 and current_price<lower_limit:
@@ -128,7 +128,7 @@ def run():
           print(output_string)
       else:
         print(output_string)
-    
+
     time_till_next_hour=3600-time.time()%3600
     time.sleep(time_till_next_hour-5)
 
