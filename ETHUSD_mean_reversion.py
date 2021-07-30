@@ -103,7 +103,7 @@ def run():
       else:
         print('Trade still active')
     else:
-      
+      print('Bollinger bands: %s, open price: %s' % ((str(upper_limit)+', '+str(lower_limit)), current_price))
       position_size=0.01#round((get_free_balance()*1.5)/current_price,precision)
       if current_gradient>0 and current_price<lower_limit:
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
