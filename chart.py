@@ -39,13 +39,26 @@ def get_sma(data,window, close=True):
 
     # return pd.DataFrame({'unix': list(map(lambda x: x[0], sma)),'value':list(map(lambda x: x[1], sma))})
 
-def get_ema(data,window, close=True):
+def get_ema(data,window, close=False):
     timestamps=data['unix'][window:]
     if close:
         ema=data.ewm(span=window,min_periods=window+1, adjust=False).mean()['close'].dropna()
     else:
         ema=data.ewm(span=window,min_periods=window+1, adjust=False).mean()['open'].dropna()
     return pd.DataFrame({'unix': timestamps,'value':ema})
+
+def get_dema(data,window,close=False):
+    ema=get_ema(data,window)
+    ema=ema.rename(columns={'value':'open'})
+    smoothed_ema=get_ema(ema,window)
+    #making both vectors the same length
+    start=np.min(smoothed_ema.index.values)
+    ema=ema.loc[start:]
+    timestamps=ema['unix'].values
+    ema=ema['open'].values
+    smoothed_ema=smoothed_ema['value'].values
+    dema=2*ema-smoothed_ema
+    return pd.DataFrame({'unix': timestamps,'value':dema})
 
 def identify_trend(daily, hourly): #using moving average channel and gradient of large timeframe moving average
     long_ema=get_ema(daily,2,False)
