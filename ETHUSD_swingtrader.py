@@ -17,8 +17,11 @@ main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oK
 Savings=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Savings')
 MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='MeanReversion')
 
-def get_balance():
-    return float(next(filter(lambda x:x['coin']=='USD', main.get_balances()))['free'])
+def get_free_balance():
+    return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['free'])
+
+def get_total_balance():
+  return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['total'])
 
 def append_new_line(file_name, text_to_append):
     """Append given text as a new line at the end of file"""
@@ -63,7 +66,7 @@ if position==None:
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     state=chart.identify_trend(daily,hourly)
-    trade_capital=get_balance()*1.5
+    trade_capital=get_free_balance()*1.5
     position_size=round(trade_capital/hourly.iloc[-1]['close'],precision)
 
 elif position['side']=='buy':
@@ -99,7 +102,8 @@ def run():
     entry=float(position['recentBreakEvenPrice'])
     position_size=float(position['size'])
     PnL=float(position['recentPnl'])
-    percentage_profit=(PnL/trade_capital)*100
+    balance=get_total_balance()
+    percentage_profit=(PnL/balance)*100
 
     #check if profits need to be taken
     if state=='long':
@@ -122,11 +126,11 @@ def run():
         if state=='short':#close position
             ftx.create_order('ETH-PERP','market','buy',position_size)
             profit=1-current_price/entry
-            balance=get_balance()
+            balance=get_free_balance()
             if profit>0:
                 amount=0.2*profit*balance
                 transfer_to_savings(amount)
-            trade_capital=get_balance()*1.5
+            trade_capital=get_free_balance()*1.5
 
         position_size=round(trade_capital/current_price,precision)
 
@@ -139,11 +143,11 @@ def run():
         if state=='long':#close position
             ftx.create_order('ETH-PERP','market','sell',position_size)
             profit=current_price/entry - 1
-            balance=get_balance()
+            balance=get_free_balance()
             if profit>0:
                 amount=0.2*profit*balance
                 transfer_to_savings(amount)
-            trade_capital=get_balance()*1.5
+            trade_capital=get_free_balance()*1.5
 
         position_size=round(trade_capital/current_price,precision)
 
