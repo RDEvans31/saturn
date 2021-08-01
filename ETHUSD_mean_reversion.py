@@ -103,11 +103,9 @@ def run():
       else:
         print('Trade still active')
     else:
-      print('Bollinger bands: %s, open price: %s' % ((str(upper_limit)+', '+str(lower_limit)), current_price))
-      position_size=0.01#round((get_free_balance()*1.5)/current_price,precision)
+      position_size=round((get_free_balance()*1.5)/current_price,precision)
       if current_gradient>0 and current_price<lower_limit:
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-          print('long @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
           ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
           #ftx_ccxt.create_limit_buy_order('ETH-PERP',position_size,current_price)
           sl=current_price-current_atr
@@ -118,7 +116,6 @@ def run():
             state='long'
       elif current_gradient<0 and current_price>upper_limit:
           output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-          print('short @ '+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S"))
           ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
           sl=current_price+current_atr
           trigger=current_price+0.99*current_atr
