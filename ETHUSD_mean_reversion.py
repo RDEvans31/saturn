@@ -143,5 +143,3 @@ time.sleep(sleeping_time)
 schedule.every().hour.at("00:01").do(run)
 while True:
     schedule.run_pending()
-
-

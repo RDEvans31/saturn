@@ -104,17 +104,17 @@ def run():
     PnL=float(position['recentPnl'])
     balance=get_total_balance()
     percentage_profit=(PnL/balance)*100
-
+    tp_amount=round(np.log(percentage_profit)/100,2)
     #check if profits need to be taken
     if state=='long':
         if (short_term_gradient>0).all() and (bb['upper']<current_price).all() and percentage_profit>5:
-            ftx.create_order('ETH-PERP','market','sell',0.1*position_size)
+            ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
             position=main.get_position('ETH-PERP',True)
             position_size=float(position['size'])
             output_string='Profit taken'
     elif state=='short':
         if (short_term_gradient<0).all() and (bb['lower']>current_price).all() and percentage_profit>5:
-            ftx.create_order('ETH-PERP','market','buy',0.1*position_size)
+            ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
             position=main.get_position('ETH-PERP',True)
             position_size=float(position['size'])
             output_string='Profit taken'
