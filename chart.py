@@ -60,9 +60,9 @@ def get_dema(data,window,close=False):
     dema=2*ema-smoothed_ema
     return pd.DataFrame({'unix': timestamps,'value':dema})
 
-def identify_trend(daily, hourly): #using moving average channel and gradient of large timeframe moving average
-    long_ema=get_ema(daily,2,False)
-    channel=ma_channel(hourly,26)
+def identify_trend(daily, hourly,daily_ema_period,hourly_ema_period): #using moving average channel and gradient of large timeframe moving average
+    long_ema=get_ema(daily,daily_ema_period,False)
+    channel=ma_channel(hourly,hourly_ema_period)
 
     gradient = get_gradient(long_ema)
     upper_bound=channel.iloc[-1]['high']

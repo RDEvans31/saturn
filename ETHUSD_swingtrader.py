@@ -92,7 +92,7 @@ def run():
     print(datetime.now())
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
-    trend=chart.identify_trend(daily,hourly)
+    trend=chart.identify_trend(daily,hourly,2,24)
     current_price=hourly.iloc[-1]['close']
     #for taking small profits
     bb=chart.get_bb(hourly,20,2.5).iloc[-1]
