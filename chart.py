@@ -60,6 +60,7 @@ def get_dema(data,window,close=False):
     dema=2*ema-smoothed_ema
     return pd.DataFrame({'unix': timestamps,'value':dema})
 
+#swing trading
 def identify_trend(daily, hourly,daily_ema_period,hourly_ema_period): #using moving average channel and gradient of large timeframe moving average
     long_ema=get_ema(daily,daily_ema_period,False)
     channel=ma_channel(hourly,hourly_ema_period)
