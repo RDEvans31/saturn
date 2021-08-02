@@ -19,10 +19,11 @@ main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oK
 Savings=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Savings')
 MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='MeanReversion')
 
-long_term_period=160
+long_term_period=90
 bb_period=8
 multiple=1.3
 atr_period=16
+channel_period=4
 
 def get_free_balance():
     return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['free'])
@@ -78,10 +79,14 @@ def run():
     ma_gradient=chart.get_gradient(long_term_ema)
     bollinger_bands=chart.get_bb(hourly,bb_period,multiple)
     current_bollinger=bollinger_bands.iloc[-1]
+    channel=chart.ma_channel(hourly,channel_period)
+    current_channel=channel.iloc[-1]
     atr=chart.get_atr(hourly,atr_period)
     current_atr=atr.iloc[-1]
     upper_limit=current_bollinger['upper']
     lower_limit=current_bollinger['lower']
+    channel_low=current_channel['low']
+    channel_high=current_channel['high']
     current_gradient=ma_gradient.iloc[-1]
 
     position=MeanReversion.get_position('ETH-PERP',True)
@@ -104,21 +109,21 @@ def run():
         print('Trade still active')
     else:
       position_size=round((get_free_balance()*1.5)/current_price,precision)
-      if current_gradient>0 and current_price<lower_limit:
+      if current_gradient>0 and current_price<channel_low:
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
           ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
           #ftx_ccxt.create_limit_buy_order('ETH-PERP',position_size,current_price)
-          sl=current_price-current_atr
-          trigger=current_price-0.99*current_atr
+          sl=current_price-0.5*current_atr
+          trigger=current_price-0.49*current_atr
           risk=abs(sl/current_price -1 )
           if (risk<=0.03):
             MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',limit_price=sl,trigger_price=trigger)
             state='long'
-      elif current_gradient<0 and current_price>upper_limit:
+      elif current_gradient<0 and current_price>channel_high:
           output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
           ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
-          sl=current_price+current_atr
-          trigger=current_price+0.99*current_atr
+          sl=current_price+0.5*current_atr
+          trigger=current_price+0.49*current_atr
           risk=abs(sl/current_price -1 )
           if (risk<=0.03):
             MeanReversion.place_conditional_order('ETH-PERP','buy',position_size,'stop',limit_price=sl,trigger_price=trigger)
