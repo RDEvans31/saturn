@@ -59,7 +59,7 @@ if position_size==0:
     precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx_ccxt.fetch_markets()))['precision']['amount']))))
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
-    state=chart.identify_trend(daily,hourly)
+    state='neutral'
     trade_capital=get_free_balance()*1.5
     position_size=round(trade_capital/hourly.iloc[-1]['close'],precision)
 
