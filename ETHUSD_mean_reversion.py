@@ -24,6 +24,7 @@ bb_period=12
 multiple=1.5
 atr_period=14
 channel_period=4
+sl=None
 
 def get_free_balance():
     return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['free'])
@@ -52,6 +53,9 @@ def check_close_trade(state,current_price,current_bollinger_bands): #returns boo
   else:
     return False,''
 
+def price_hit(candle,price):
+    return candle['high']>price and candle['low']<price
+
 position=MeanReversion.get_position('ETH-PERP',True)
 position_size=float(position['size'])
 if position_size==0:
@@ -60,7 +64,7 @@ if position_size==0:
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     state='neutral'
-    trade_capital=get_free_balance()*1.5
+    trade_capital=get_free_balance()
     position_size=round(trade_capital/hourly.iloc[-1]['close'],precision)
 
 elif position['side']=='buy':
@@ -72,8 +76,10 @@ elif position['side']=='sell':
 
 def run():
     global state
+    global sl
     print(datetime.now())
     hourly=price.get_price_data('1h',symbol='ETH/USD')
+    previous_candle=hourly.iloc[-2]
     current_price=hourly.iloc[-1]['close']
     long_term_ema=chart.get_ema(hourly,long_term_period,False)
     ma_gradient=chart.get_gradient(long_term_ema)
@@ -108,7 +114,14 @@ def run():
       else:
         print('Trade still active')
     else:
-      position_size=round((get_free_balance()*1.5)/current_price,precision)
+      #check if sl was hit
+      if sl!=None:
+        if price_hit(previous_candle,sl):
+          sl=None
+          print('Stop loss hit')
+          append_new_line('ETH_meanReversion_log.txt','Stop loss hit.')
+
+      position_size=round((get_free_balance())/current_price,precision)
       if current_gradient>0 and current_price<channel_low:
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
           ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
