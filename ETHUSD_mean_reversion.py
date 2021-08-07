@@ -19,10 +19,8 @@ main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oK
 Savings=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Savings')
 MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='MeanReversion')
 
-long_term_period=105
-bb_period=12
-multiple=1.5
-atr_period=14
+long_term_period=100
+atr_period=6
 channel_period=4
 sl=None
 
@@ -45,10 +43,10 @@ def append_new_line(file_name, text_to_append):
         # Append text at the end of file
         file_object.write(text_to_append)
 
-def check_close_trade(state,current_price,current_bollinger_bands): #returns boolean for closing trade, side of closing order
-  if state=='long' and (current_price>current_bollinger_bands['upper']).all():
+def check_close_trade(state,current_price,current_channel): #returns boolean for closing trade, side of closing order
+  if state=='long' and (current_price>current_channel['high']).all():
     return True, 'sell'
-  elif state=='short' and (current_price<current_bollinger_bands['lower']).all():
+  elif state=='short' and (current_price<current_channel['low']).all():
     return True, 'buy'
   else:
     return False,''
@@ -83,14 +81,10 @@ def run():
     current_price=hourly.iloc[-1]['close']
     long_term_ema=chart.get_ema(hourly,long_term_period,False)
     ma_gradient=chart.get_gradient(long_term_ema)
-    bollinger_bands=chart.get_bb(hourly,bb_period,multiple)
-    current_bollinger=bollinger_bands.iloc[-1]
     channel=chart.ma_channel(hourly,channel_period)
     current_channel=channel.iloc[-1]
     atr=chart.get_atr(hourly,atr_period)
     current_atr=atr.iloc[-1]
-    upper_limit=current_bollinger['upper']
-    lower_limit=current_bollinger['lower']
     channel_low=current_channel['low']
     channel_high=current_channel['high']
     current_gradient=ma_gradient.iloc[-1]
@@ -101,11 +95,11 @@ def run():
 
     if active_trade:
       print('Active trade. ')
-      print('Bollinger bands: %s, open price: %s' % ((str(upper_limit)+', '+str(lower_limit)), current_price))
+      print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
       PnL=float(position['recentPnl'])
       entry=float(position['recentBreakEvenPrice'])
       #check for conditions to close trade
-      outcome, side = check_close_trade(state,current_price,current_bollinger)
+      outcome, side = check_close_trade(state,current_price,current_channel)
       if outcome:
         ftx_ccxt.create_order('ETH-PERP','market',side,position_size)
         state=='neutral'
@@ -122,6 +116,7 @@ def run():
           append_new_line('ETH_meanReversion_log.txt','Stop loss hit.')
 
       position_size=round((get_free_balance())/current_price,precision)
+
       if current_gradient>0 and current_price<channel_low:
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
           ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
