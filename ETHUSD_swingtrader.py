@@ -62,12 +62,12 @@ position=main.get_position('ETH-PERP',True)
 
 if position==None:
     string = 'No position, starting state: neutral'
-    precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx.fetch_markets()))['precision']['amount']))))
+    #precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx.fetch_markets()))['precision']['amount']))))
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     state=chart.identify_trend(daily,hourly)
     trade_capital=get_free_balance()*1.5
-    position_size=round(trade_capital/hourly.iloc[-1]['close'],precision)
+    position_size=round(trade_capital/hourly.iloc[-1]['close'],3)
 
 elif position['side']=='buy':
     entry=float(position['recentBreakEvenPrice'])
