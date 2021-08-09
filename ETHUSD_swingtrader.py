@@ -118,7 +118,8 @@ def run():
         PnL=float(position['recentPnl'])
         balance=get_total_balance()
         percentage_profit=(PnL/balance)*100
-        tp_amount=round(np.log(percentage_profit)/100,2)
+        if percentage_profit>0:
+            tp_amount=round(np.log(percentage_profit)/100,2)
     #check if profits need to be taken
     if state=='long':
         if (short_term_gradient>0).all() and (bb['upper']<current_price).all() and percentage_profit>5:
