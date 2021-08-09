@@ -44,30 +44,44 @@ def transfer_to_savings(amount):
         "destination":"Savings"
     })
 
-def check_starting_conditions():
-    global state
-    print('Checking starting conditions')
-    daily=price.get_price_data('1d',symbol='ETH/USD')
-    hourly=price.get_price_data('1h',symbol='ETH/USD')
-    if state=='neutral':
-        state=chart.identify_trend(daily,hourly) #MANUALLY CHANGE IF CURRENLT HAS OPEN POSITION
-    if (state!='neutral' and position_size==0.0):
-        print('starting conditions not met')
-    else:
-        return schedule.CancelJob
+# def check_starting_conditions():
+#     global state
+#     print('Checking starting conditions')
+#     daily=price.get_price_data('1d',symbol='ETH/USD')
+#     hourly=price.get_price_data('1h',symbol='ETH/USD')
+#     if state=='neutral':
+#         state=chart.identify_trend(daily,hourly,2,24) #MANUALLY CHANGE IF CURRENLT HAS OPEN POSITION
+#     if (state!='neutral' and position_size==0.0):
+#         print('starting conditions not met')
+#     else:
+#         return schedule.CancelJob
 
 
 position=main.get_position('ETH-PERP',True)
 
 
-if position==None:
+if position==None or position['size']==0:
     string = 'No position, starting state: neutral'
     #precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx.fetch_markets()))['precision']['amount']))))
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
-    state=chart.identify_trend(daily,hourly)
+    current_price=hourly.iloc[-1]['close']
+    trend=chart.identify_trend(daily,hourly,2,24)
     trade_capital=get_free_balance()*1.5
-    position_size=round(trade_capital/hourly.iloc[-1]['close'],3)
+    position_size=round(trade_capital/current_price,3)
+    if trend=='uptrend':
+        ftx.create_order('ETH-PERP','market','buy',position_size)
+        state='long'
+        entry=current_price
+        string='No position, opening long'
+    elif trend=='downtrend':
+        ftx.create_order('ETH-PERP','market','sell',position_size)
+        state='short'
+        entry=current_price
+        string='No position, opening short'
+    else:
+        state='neutral'
+
 
 elif position['side']=='buy':
     entry=float(position['recentBreakEvenPrice'])
@@ -84,7 +98,6 @@ elif position['side']=='sell':
 
 print(string)
 
-
 def run():
     global state
     global trade_capital
@@ -98,13 +111,14 @@ def run():
     bb=chart.get_bb(hourly,20,2.5).iloc[-1]
     short_term_gradient=chart.get_gradient(chart.get_sma(hourly,20,False)).iloc[-1]
 
-    position=main.get_position('ETH-PERP',True)
-    entry=float(position['recentBreakEvenPrice'])
-    position_size=float(position['size'])
-    PnL=float(position['recentPnl'])
-    balance=get_total_balance()
-    percentage_profit=(PnL/balance)*100
-    tp_amount=round(np.log(percentage_profit)/100,2)
+    if state!='neutral':
+        position=main.get_position('ETH-PERP',True)
+        entry=float(position['recentBreakEvenPrice'])
+        position_size=float(position['size'])
+        PnL=float(position['recentPnl'])
+        balance=get_total_balance()
+        percentage_profit=(PnL/balance)*100
+        tp_amount=round(np.log(percentage_profit)/100,2)
     #check if profits need to be taken
     if state=='long':
         if (short_term_gradient>0).all() and (bb['upper']<current_price).all() and percentage_profit>5:
@@ -132,7 +146,7 @@ def run():
                 transfer_to_savings(amount)
             trade_capital=get_free_balance()*1.5
 
-        position_size=round(trade_capital/current_price,precision)
+        position_size=round(trade_capital/current_price,3)
 
         ftx.create_order('ETH-PERP','market','buy',position_size)
         state='long'
@@ -149,7 +163,7 @@ def run():
                 transfer_to_savings(amount)
             trade_capital=get_free_balance()*1.5
 
-        position_size=round(trade_capital/current_price,precision)
+        position_size=round(trade_capital/current_price,3)
 
         ftx.create_order('ETH-PERP','market','sell',position_size)
         state='short'
@@ -166,12 +180,12 @@ def run():
     time_till_next_hour=3600-time.time()%3600
     time.sleep(time_till_next_hour-5)
 
-schedule.every().minute.at(":01").do(check_starting_conditions)
-while state!='neutral' and position_size==0.0:
-    schedule.run_pending()
+# schedule.every().minute.at(":01").do(check_starting_conditions)
+# while state!='neutral' and position_size==0.0:
+#     schedule.run_pending()
     #scheduled to run the job every hour
-print('starting')
-schedule.clear()
+print('starting main loop')
+# schedule.clear()
 #sleep until just before the next hour
 sleeping_time=3600-time.time()%3600 -5
 print('sleeping for ', round(sleeping_time/60))
