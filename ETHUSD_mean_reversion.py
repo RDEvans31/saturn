@@ -115,7 +115,7 @@ def run():
           print('Stop loss hit')
           append_new_line('ETH_meanReversion_log.txt','Stop loss hit.')
 
-      position_size=round((get_free_balance())/current_price,precision)
+      position_size=round((get_free_balance())/current_price,3)
 
       if current_gradient>0 and current_price<channel_low:
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
