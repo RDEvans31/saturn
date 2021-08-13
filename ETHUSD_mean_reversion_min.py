@@ -77,7 +77,7 @@ def run():
     print(datetime.now())
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     previous_candle=minute.iloc[-2]
-    current_price=minute.iloc[-1]['close']
+    current_price=minute.iloc[-1]['open']
     long_term_ema=chart.get_ema(minute,long_term_period,False)
     ma_gradient=chart.get_gradient(long_term_ema)
     channel=chart.ma_channel(minute,channel_period)
@@ -95,8 +95,6 @@ def run():
     if active_trade:
       print('Active trade. ')
       print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
-      PnL=float(position['recentPnl'])
-      entry=float(position['recentBreakEvenPrice'])
       #check for conditions to close trade
       outcome, side = check_close_trade(state,current_price,current_channel)
       if outcome:
@@ -146,7 +144,7 @@ def run():
 
 print('Starting main loop')
 #sleep until just before the next hour
-sleeping_time=60-time.time()%60-1
+sleeping_time=60-time.time()%60-2
 print('sleeping for ', round(sleeping_time))
 time.sleep(sleeping_time)
 schedule.every().minute.at(":00").do(run)
