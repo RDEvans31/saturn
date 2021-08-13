@@ -23,6 +23,7 @@ long_term_period=100
 atr_period=6
 channel_period=4
 sl=None
+sl_multiple=0.45
 
 def get_free_balance():
     return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['free'])
@@ -76,7 +77,7 @@ def run():
     global state
     global sl
     print(datetime.now())
-    hourly=price.get_price_data('1h',symbol='ETH/USD')
+    hourly=price.get_price_data('1h',symbol='ETH-PERP')
     previous_candle=hourly.iloc[-2]
     current_price=hourly.iloc[-1]['close']
     long_term_ema=chart.get_ema(hourly,long_term_period,False)
@@ -96,8 +97,6 @@ def run():
     if active_trade:
       print('Active trade. ')
       print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
-      PnL=float(position['recentPnl'])
-      entry=float(position['recentBreakEvenPrice'])
       #check for conditions to close trade
       outcome, side = check_close_trade(state,current_price,current_channel)
       if outcome:
@@ -121,20 +120,18 @@ def run():
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
           ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
           #ftx_ccxt.create_limit_buy_order('ETH-PERP',position_size,current_price)
-          sl=current_price-0.5*current_atr
-          trigger=current_price-0.49*current_atr
+          sl=current_price-sl_multiple*current_atr
           risk=abs(sl/current_price -1 )
           if (risk<=0.03):
-            MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',limit_price=sl,trigger_price=trigger)
+            MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=sl)
             state='long'
       elif current_gradient<0 and current_price>channel_high:
           output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
           ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
-          sl=current_price+0.5*current_atr
-          trigger=current_price+0.49*current_atr
+          sl=current_price+sl_multiple*current_atr
           risk=abs(sl/current_price -1 )
           if (risk<=0.03):
-            MeanReversion.place_conditional_order('ETH-PERP','buy',position_size,'stop',limit_price=sl,trigger_price=trigger)
+            MeanReversion.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=sl)
             state='short'
       else:
         output_string=''
