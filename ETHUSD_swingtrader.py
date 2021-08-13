@@ -15,13 +15,12 @@ ftx = ccxt.ftx({
 
 main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B')
 Savings=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Savings')
-MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='MeanReversion')
 
 def get_free_balance():
-    return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['free'])
+    return float(next(filter(lambda x:x['coin']=='USD', main.get_balances()))['free'])
 
 def get_total_balance():
-  return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['total'])
+  return float(next(filter(lambda x:x['coin']=='USD', main.get_balances()))['total'])
 
 def append_new_line(file_name, text_to_append):
     """Append given text as a new line at the end of file"""
