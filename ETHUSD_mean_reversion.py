@@ -19,11 +19,11 @@ main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oK
 Savings=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Savings')
 MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='MeanReversion')
 
-long_term_period=100
-atr_period=6
-channel_period=4
+long_term_period=9
+atr_period=5
+channel_period=3
 sl=None
-sl_multiple=0.45
+sl_multiple=0.3
 
 def get_free_balance():
     return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['free'])
@@ -83,7 +83,7 @@ def run():
     long_term_ema=chart.get_ema(hourly,long_term_period,False)
     ma_gradient=chart.get_gradient(long_term_ema)
     channel=chart.ma_channel(hourly,channel_period)
-    current_channel=channel.iloc[-1]
+    current_channel=channel.iloc[-2]
     atr=chart.get_atr(hourly,atr_period)
     current_atr=atr.iloc[-1]
     channel_low=current_channel['low']
