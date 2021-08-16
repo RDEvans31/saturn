@@ -18,11 +18,11 @@ ftx_ccxt.headers = {'FTX-SUBACCOUNT':'Minute_MeanReversion'}
 main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B')
 MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Minute_MeanReversion')
 
-long_term_period=60
-atr_period=6
+long_term_period=9
+atr_period=5
 channel_period=3
 sl=None
-sl_multiple=1
+sl_multiple=0.3
 
 def get_free_balance():
     return float(next(filter(lambda x:x['coin']=='USD', MeanReversion.get_balances()))['free'])
@@ -85,7 +85,7 @@ def run():
     long_term_ema=chart.get_ema(minute,long_term_period,False)
     ma_gradient=chart.get_gradient(long_term_ema)
     channel=chart.ma_channel(minute,channel_period)
-    current_channel=channel.iloc[-1]
+    current_channel=channel.iloc[-2]
     atr=chart.get_atr(minute,atr_period)
     current_atr=atr.iloc[-1]
     channel_low=current_channel['low']
@@ -133,7 +133,7 @@ def run():
       elif current_gradient<0 and current_price>channel_high:
           
           sl=current_price+sl_multiple*current_atr
-          output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S") + "sl: "+str(sl)
+          output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S") + " sl: "+str(sl)
           risk=abs(sl/current_price -1 )
           if (risk<=0.03):
             #ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)

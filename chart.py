@@ -28,6 +28,14 @@ def ma_channel(data, window):
 
     return pd.DataFrame({'unix':sma['unix'],'high':sma['high'], 'low':sma['low'], 'open':sma['open']})
 
+def h_l_channel(data,window):
+    timestamps=data['unix']
+    high=data.rolling(window).max()['high']
+    low=data.rolling(window).min()['low']
+    result=pd.DataFrame({'unix':timestamps,'high':high, 'low':low})
+    result.dropna(inplace=True)
+    return result 
+
 def get_sma(data,window, close=True):
      #using daily for now
     timestamps=data['unix'][window-1:]
