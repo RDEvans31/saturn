@@ -4,6 +4,7 @@ import chart
 import time
 import schedule
 import numpy as np
+import pandas as pd
 from datetime import datetime
 from ftx_client import FtxClient
 
@@ -81,11 +82,11 @@ def run():
     print(datetime.now())
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     previous_candle=minute.iloc[-2]
-    current_price=minute.iloc[-1]['open']
-    long_term_ema=chart.get_ema(minute,long_term_period,False)
+    current_price=minute.iloc[-1]['close']
+    long_term_ema=chart.get_ema(minute,long_term_period,True)
     ma_gradient=chart.get_gradient(long_term_ema)
     channel=chart.ma_channel(minute,channel_period)
-    current_channel=channel.iloc[-2]
+    current_channel=channel.iloc[-1]
     atr=chart.get_atr(minute,atr_period)
     current_atr=atr.iloc[-1]
     channel_low=current_channel['low']
@@ -94,7 +95,7 @@ def run():
 
     position=MeanReversion.get_position('ETH-PERP',True)
     position_size=float(position['size'])
-    #active_trade=position_size!=0
+    active_trade=position_size!=0
 
     if active_trade:
       print('Active trade. ')
@@ -102,7 +103,7 @@ def run():
       #check for conditions to close trade
       outcome, side = check_close_trade(state,current_price,current_channel)
       if outcome:
-        #ftx_ccxt.create_order('ETH-PERP','market',side,position_size)
+        ftx_ccxt.create_order('ETH-PERP','market',side,position_size)
         print('Position closed with success criteria met')
         state=='neutral'
         MeanReversion.cancel_orders()
@@ -127,8 +128,8 @@ def run():
           output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S") + "sl: "+str(sl)
           risk=abs(sl/current_price -1 )
           if (risk<=0.03):
-            #ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
-            #MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=sl)
+            ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
+            MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=sl)
             state='long'
       elif current_gradient<0 and current_price>channel_high:
           
@@ -136,8 +137,8 @@ def run():
           output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S") + " sl: "+str(sl)
           risk=abs(sl/current_price -1 )
           if (risk<=0.03):
-            #ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
-            #MeanReversion.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=sl)
+            ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
+            MeanReversion.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=sl)
             state='short'
       else:
         output_string=''
@@ -153,9 +154,9 @@ def run():
 
 print('Starting main loop')
 #sleep until just before the next hour
-sleeping_time=60-time.time()%60-2
+sleeping_time=60-time.time()%60-1
 print('sleeping for ', round(sleeping_time))
 time.sleep(sleeping_time)
-schedule.every().minute.at(":00").do(run)
+schedule.every().minute.at(":01").do(run)
 while True:
     schedule.run_pending()
