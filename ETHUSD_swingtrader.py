@@ -66,7 +66,7 @@ if position==None or position['size']==0:
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     current_price=hourly.iloc[-1]['close']
     trend=chart.identify_trend(daily,hourly,2,24)
-    trade_capital=get_free_balance()*1.5
+    trade_capital=get_free_balance()
     position_size=round(trade_capital/current_price,3)
     if trend=='uptrend':
         ftx.create_order('ETH-PERP','market','buy',position_size)
@@ -144,7 +144,7 @@ def run():
             if profit>0:
                 amount=0.2*profit*balance
                 transfer_to_savings(amount)
-            trade_capital=get_free_balance()*1.5
+            trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
 
@@ -161,7 +161,7 @@ def run():
             if profit>0:
                 amount=0.2*profit*balance
                 transfer_to_savings(amount)
-            trade_capital=get_free_balance()*1.5
+            trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
 
