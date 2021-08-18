@@ -76,7 +76,6 @@ elif position['side']=='sell':
 def run():
     global state
     global active_trade
-    print(datetime.now())
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     previous_candle=minute.iloc[-2]
     current_price=minute.iloc[-1]['close']
@@ -89,6 +88,9 @@ def run():
     channel_low=current_channel['low']
     channel_high=current_channel['high']
     current_gradient=ma_gradient.iloc[-1]
+
+    print(datetime.now())
+    print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
 
     position=MeanReversion.get_position('ETH-PERP',True)
     position_size=float(position['size'])
@@ -104,7 +106,6 @@ def run():
     active_trade=position_size!=0
     if active_trade:
         print('Active trade. ')
-        print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
         #check for conditions to close trade
         outcome, side = check_close_trade(state,current_price,current_channel)
         if outcome:
