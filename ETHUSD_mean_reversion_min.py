@@ -101,7 +101,8 @@ def run():
         state='neutral'
         print('Stop loss hit')
         append_new_line('ETH_meanReversion_log_min.txt','Stop loss hit.')
-      else:
+    active_trade=position_size!=0
+    if active_trade:
         print('Active trade. ')
         print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
         #check for conditions to close trade
