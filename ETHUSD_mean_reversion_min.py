@@ -84,7 +84,7 @@ def run():
     channel=chart.ma_channel(minute,channel_period)
     current_channel=channel.iloc[-1]
     atr=chart.get_atr(minute,atr_period)
-    current_atr=atr.iloc[-1]
+    current_atr=atr.iloc[-2]
     channel_low=current_channel['low']
     channel_high=current_channel['high']
     current_gradient=ma_gradient.iloc[-1]
