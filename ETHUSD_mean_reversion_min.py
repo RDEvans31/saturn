@@ -72,13 +72,8 @@ elif position['side']=='sell':
     print('starting state: short')
     state='short'
 
-#purely for testing
-active_trade=False
-
 def run():
     global state
-    global sl
-    global active_trade
     print(datetime.now())
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     previous_candle=minute.iloc[-2]
@@ -105,20 +100,18 @@ def run():
       if outcome:
         ftx_ccxt.create_order('ETH-PERP','market',side,position_size)
         print('Position closed with success criteria met')
-        state=='neutral'
+        state='neutral'
         MeanReversion.cancel_orders()
         active_trade=False
       else:
         print('Trade still active')
     else:
-      #check if sl was hit
-      if sl!=None:
-        if price_hit(previous_candle,sl):
-          #for testing
-          active_trade=False
-          sl=None
-          print('Stop loss hit')
-          append_new_line('ETH_meanReversion_log_min.txt','Stop loss hit.')
+      no_orders=len(MeanReversion.get_conditional_orders())==0
+      if no_orders:
+        active_trade=False
+        state='neutral'
+        print('Stop loss hit')
+        append_new_line('ETH_meanReversion_log_min.txt','Stop loss hit.')
 
       position_size=round((get_free_balance())/current_price,3)
 
