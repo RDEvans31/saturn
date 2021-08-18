@@ -57,6 +57,7 @@ def price_hit(candle,price):
 
 position=MeanReversion.get_position('ETH-PERP',True)
 position_size=float(position['size'])
+active_trade=position_size!=0
 if position_size==0:
     print('No position, starting state: neutral')
     #precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx_ccxt.fetch_markets()))['precision']['amount']))))
@@ -74,6 +75,7 @@ elif position['side']=='sell':
 
 def run():
     global state
+    global active_trade
     print(datetime.now())
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     previous_candle=minute.iloc[-2]
@@ -93,26 +95,26 @@ def run():
     active_trade=position_size!=0
 
     if active_trade:
-      print('Active trade. ')
-      print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
-      #check for conditions to close trade
-      outcome, side = check_close_trade(state,current_price,current_channel)
-      if outcome:
-        ftx_ccxt.create_order('ETH-PERP','market',side,position_size)
-        print('Position closed with success criteria met')
-        state='neutral'
-        MeanReversion.cancel_orders()
-        active_trade=False
-      else:
-        print('Trade still active')
-    else:
       no_orders=len(MeanReversion.get_conditional_orders())==0
       if no_orders:
         active_trade=False
         state='neutral'
         print('Stop loss hit')
         append_new_line('ETH_meanReversion_log_min.txt','Stop loss hit.')
-
+      else:
+        print('Active trade. ')
+        print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
+        #check for conditions to close trade
+        outcome, side = check_close_trade(state,current_price,current_channel)
+        if outcome:
+          ftx_ccxt.create_order('ETH-PERP','market',side,position_size)
+          print('Position closed with success criteria met')
+          state='neutral'
+          MeanReversion.cancel_orders()
+          active_trade=False
+        else:
+          print('Trade still active')
+    else:
       position_size=round((get_free_balance())/current_price,3)
 
       if current_gradient>0 and current_price<channel_low:
