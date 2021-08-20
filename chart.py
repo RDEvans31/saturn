@@ -15,23 +15,27 @@ import sys
 
 def get_gradient(ma):
     
-    return pd.Series(
+    gradient=pd.Series(
         index=ma['unix'].values,
         data=np.gradient(ma['value'])
     )
+    gradient_shifted=gradient.shift(periods=1)
+    gradient_shifted=gradient_shifted.dropna()
+
+    return gradient_shifted
 
 def ma_channel(data, window):
     timestamps=data['unix']
-    sma=data.rolling(window).mean()
+    sma=data.rolling(window).mean().shift(periods=1)
     sma['unix']=timestamps
     sma.dropna(inplace=True)    
 
-    return pd.DataFrame({'unix':sma['unix'],'high':sma['high'], 'low':sma['low'], 'open':sma['open']})
+    return pd.DataFrame({'unix':sma['unix'],'high':sma['high'], 'low':sma['low']})
 
 def h_l_channel(data,window):
     timestamps=data['unix']
-    high=data.rolling(window).max()['high']
-    low=data.rolling(window).min()['low']
+    high=data.rolling(window).max()['high'].shift(periods=1)
+    low=data.rolling(window).min()['low'].shift(periods=1)
     result=pd.DataFrame({'unix':timestamps,'high':high, 'low':low})
     result.dropna(inplace=True)
     return result 
@@ -187,7 +191,7 @@ def get_atr(candles,periods=14):
         tr.append(true_range)
         index.append(candle['unix'])
     tr=pd.Series(tr, index=index)
-    atr = tr.rolling(window=periods).mean()
+    atr = tr.rolling(window=periods).mean().shift(periods=1)
 
     return atr
 
