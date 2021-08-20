@@ -102,11 +102,13 @@ def run():
     short_term_gradient=chart.get_gradient(chart.get_sma(minute,20,False)).iloc[-1]
 
     if state!='neutral':
+        
         position=ShortTerm.get_position('ETH-PERP',True)
         entry=float(position['recentBreakEvenPrice'])
         position_size=float(position['size'])
         PnL=float(position['recentPnl'])
         balance=get_total_balance()
+        print("Current price: % s, PnL: % s" % (str(current_price),PnL))
         percentage_profit=(PnL/balance)*100
         # if percentage_profit>0:
         #     tp_amount=round(np.log(percentage_profit)/100,2)
@@ -166,8 +168,7 @@ def run():
     if output_string!='':
         print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
-    if state!='neutral':
-      print("Current price: % s, PnL: % s" % (str(current_price),PnL))
+
 
     time_till_next_min=60-time.time()%60-1
     time.sleep(time_till_next_min-1)
