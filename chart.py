@@ -34,8 +34,8 @@ def ma_channel(data, window):
 
 def h_l_channel(data,window):
     timestamps=data['unix']
-    high=data.rolling(window).max()['high'].shift(periods=1)
-    low=data.rolling(window).min()['low'].shift(periods=1)
+    high=data.rolling(window).max()['open'].shift(periods=1)
+    low=data.rolling(window).min()['open'].shift(periods=1)
     result=pd.DataFrame({'unix':timestamps,'high':high, 'low':low})
     result.dropna(inplace=True)
     return result 
@@ -73,15 +73,14 @@ def get_dema(data,window,close=False):
     return pd.DataFrame({'unix': timestamps,'value':dema})
 
 #swing trading
-def identify_trend(daily, hourly,daily_ema_period,hourly_ma_period): #using moving average channel and gradient of large timeframe moving average
-    long_ema=get_ema(daily,daily_ema_period,False)
-    channel=ma_channel(hourly,hourly_ma_period)
-
+def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_period): #using moving average channel and gradient of large timeframe moving average
+    long_ema=get_ema(long_term,long_term_ema_period,False)
+    channel=ma_channel(short_term,short_term_ma_period)
     gradient = get_gradient(long_ema)
     upper_bound=channel.iloc[-1]['high']
     lower_bound=channel.iloc[-1]['low']
     day=max(gradient.index)
-    five_opens=hourly.tail(n=5)['open'].values
+    five_opens=short_term.tail(n=5)['open'].values
     uptrend=gradient.loc[day]>0
     current=five_opens[-1]
 

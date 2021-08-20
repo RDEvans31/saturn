@@ -13,14 +13,17 @@ ftx = ccxt.ftx({
     'enableRateLimit': True,
 })
 
+ftx.headers = {'FTX-SUBACCOUNT':'Minute_MeanReversion'}
+
 main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B')
+ShortTerm=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Minute_MeanReversion')
 Savings=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Savings')
 
 def get_free_balance():
-    return float(next(filter(lambda x:x['coin']=='USD', main.get_balances()))['free'])
+    return float(next(filter(lambda x:x['coin']=='USD', ShortTerm.get_balances()))['free'])
 
 def get_total_balance():
-  return float(next(filter(lambda x:x['coin']=='USD', main.get_balances()))['total'])
+  return float(next(filter(lambda x:x['coin']=='USD', ShortTerm.get_balances()))['total'])
 
 def append_new_line(file_name, text_to_append):
     """Append given text as a new line at the end of file"""
@@ -43,29 +46,17 @@ def transfer_to_savings(amount):
         "destination":"Savings"
     })
 
-# def check_starting_conditions():
-#     global state
-#     print('Checking starting conditions')
-#     daily=price.get_price_data('1d',symbol='ETH/USD')
-#     hourly=price.get_price_data('1h',symbol='ETH/USD')
-#     if state=='neutral':
-#         state=chart.identify_trend(daily,hourly,2,24) #MANUALLY CHANGE IF CURRENLT HAS OPEN POSITION
-#     if (state!='neutral' and position_size==0.0):
-#         print('starting conditions not met')
-#     else:
-#         return schedule.CancelJob
 
-
-position=main.get_position('ETH-PERP',True)
+position=ShortTerm.get_position('ETH-PERP',True)
 
 
 if position==None or position['size']==0:
     string = 'No position, starting state: neutral'
-    #precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx.fetch_markets()))['precision']['amount']))))
-    daily=price.get_price_data('1d',symbol='ETH/USD')
-    hourly=price.get_price_data('1h',symbol='ETH/USD')
-    current_price=hourly.iloc[-1]['close']
-    trend=chart.identify_trend(daily,hourly,2,24)
+    #precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH-PERP',ftx.fetch_markets()))['precision']['amount']))))
+    hourly=price.get_price_data('1h',symbol='ETH-PERP')
+    minute=price.get_price_data('1m',symbol='ETH-PERP')
+    current_price=minute.iloc[-1]['close']
+    trend=chart.identify_trend(hourly,minute,2,24)
     trade_capital=get_free_balance()
     position_size=round(trade_capital/current_price,3)
     if trend=='uptrend':
@@ -102,36 +93,36 @@ def run():
     global trade_capital
     global entry
     print(datetime.now())
-    daily=price.get_price_data('1d',symbol='ETH/USD')
-    hourly=price.get_price_data('1h',symbol='ETH/USD')
-    trend=chart.identify_trend(daily,hourly,2,24)
-    current_price=hourly.iloc[-1]['close']
+    hourly=price.get_price_data('1h',symbol='ETH-PERP')
+    minute=price.get_price_data('1m',symbol='ETH-PERP')
+    trend=chart.identify_trend(hourly,minute,2,16)
+    current_price=minute.iloc[-1]['close']
     #for taking small profits
-    bb=chart.get_bb(hourly,20,2.5).iloc[-1]
-    short_term_gradient=chart.get_gradient(chart.get_sma(hourly,20,False)).iloc[-1]
+    bb=chart.get_bb(minute,20,2.5).iloc[-1]
+    short_term_gradient=chart.get_gradient(chart.get_sma(minute,20,False)).iloc[-1]
 
     if state!='neutral':
-        position=main.get_position('ETH-PERP',True)
+        position=ShortTerm.get_position('ETH-PERP',True)
         entry=float(position['recentBreakEvenPrice'])
         position_size=float(position['size'])
         PnL=float(position['recentPnl'])
         balance=get_total_balance()
         percentage_profit=(PnL/balance)*100
-        if percentage_profit>0:
-            tp_amount=round(np.log(percentage_profit)/100,2)
+        # if percentage_profit>0:
+        #     tp_amount=round(np.log(percentage_profit)/100,2)
     #check if profits need to be taken
-    if state=='long':
-        if (short_term_gradient>0).all() and (bb['upper']<current_price).all() and percentage_profit>5:
-            ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
-            position=main.get_position('ETH-PERP',True)
-            position_size=float(position['size'])
-            output_string='Profit taken'
-    elif state=='short':
-        if (short_term_gradient<0).all() and (bb['lower']>current_price).all() and percentage_profit>5:
-            ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
-            position=main.get_position('ETH-PERP',True)
-            position_size=float(position['size'])
-            output_string='Profit taken'
+    # if state=='long':
+    #     if (short_term_gradient>0).all() and (bb['upper']<current_price).all() and percentage_profit>5:
+    #         ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
+    #         position=ShortTerm.get_position('ETH-PERP',True)
+    #         position_size=float(position['size'])
+    #         output_string='Profit taken'
+    # elif state=='short':
+    #     if (short_term_gradient<0).all() and (bb['lower']>current_price).all() and percentage_profit>5:
+    #         ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
+    #         position=ShortTerm.get_position('ETH-PERP',True)
+    #         position_size=float(position['size'])
+    #         output_string='Profit taken'
 
 
     if trend == 'uptrend' and state != 'long':
@@ -141,9 +132,9 @@ def run():
             ftx.create_order('ETH-PERP','market','buy',position_size)
             profit=1-current_price/entry
             balance=get_free_balance()
-            if profit>0:
-                amount=0.2*profit*balance
-                transfer_to_savings(amount)
+            # if profit>0:
+            #     amount=0.2*profit*balance
+            #     transfer_to_savings(amount)
             trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
@@ -158,9 +149,9 @@ def run():
             ftx.create_order('ETH-PERP','market','sell',position_size)
             profit=current_price/entry - 1
             balance=get_free_balance()
-            if profit>0:
-                amount=0.2*profit*balance
-                transfer_to_savings(amount)
+            # if profit>0:
+            #     amount=0.2*profit*balance
+            #     transfer_to_savings(amount)
             trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
@@ -175,18 +166,18 @@ def run():
     if output_string!='':
         print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
-    if state != 'neutral':
-        print("Current price: % s, PnL: % s" % (str(current_price),PnL))
+    if state!='neutral':
+      print("Current price: % s, PnL: % s" % (str(current_price),PnL))
 
-    time_till_next_hour=3600-time.time()%3600
-    time.sleep(time_till_next_hour-5)
+    time_till_next_min=60-time.time()%60-1
+    time.sleep(time_till_next_min-1)
 
 print('starting main loop')
 # schedule.clear()
-#sleep until just before the next hour
-sleeping_time=3600-time.time()%3600 -5
-print('sleeping for ', round(sleeping_time/60))
+#sleep until just before the next min
+sleeping_time=60-time.time()%60-1
+print('sleeping for ', round(sleeping_time))
 time.sleep(sleeping_time)
-schedule.every().hour.at("00:01").do(run)
+schedule.every().minute.at(":01").do(run)
 while True:
     schedule.run_pending()
