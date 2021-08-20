@@ -1,3 +1,4 @@
+from operator import truediv
 import ccxt
 import price_data as price
 import chart
@@ -19,9 +20,9 @@ ftx_ccxt.headers = {'FTX-SUBACCOUNT':'Minute_MeanReversion'}
 main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B')
 MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Minute_MeanReversion')
 
-long_term_period=9
-atr_period=5
-channel_period=3
+long_term_period=15
+atr_period=9
+channel_period=2
 sl=None
 sl_multiple=0.3
 
@@ -73,31 +74,37 @@ elif position['side']=='sell':
     print('starting state: short')
     state='short'
 
+sl=None
+
 def run():
     global state
     global active_trade
+    global sl
     minute=price.get_price_data('1m',symbol='ETH-PERP')
-    previous_candle=minute.iloc[-2]
     current_price=minute.iloc[-1]['close']
     long_term_ema=chart.get_ema(minute,long_term_period,True)
     ma_gradient=chart.get_gradient(long_term_ema)
     channel=chart.ma_channel(minute,channel_period)
     current_channel=channel.iloc[-1]
     atr=chart.get_atr(minute,atr_period)
-    current_atr=atr.iloc[-2]
+    current_atr=atr.iloc[-1]
     channel_low=current_channel['low']
     channel_high=current_channel['high']
-    current_gradient=ma_gradient.iloc[-1]
+    current_gradient=ma_gradient.iloc[-2]
 
-    print(datetime.now())
-    print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
+    date=datetime.now()
+    # print('Channel: %s, open price: %s, gradient: %s' % ((str(channel_high)+', '+str(channel_low)), current_price, current_gradient.item()))
 
     position=MeanReversion.get_position('ETH-PERP',True)
     position_size=float(position['size'])
-    active_trade=position_size!=0
-
     if active_trade:
       no_orders=len(MeanReversion.get_conditional_orders())==0
+      # testing
+      # if price_hit(minute.iloc[-1],sl):
+      #   active_trade=False
+      #   state='neutral'
+      #   print('Stop loss hit')
+      #   append_new_line('ETH_meanReversion_log_min.txt','Stop loss hit.')
       if no_orders:
         active_trade=False
         state='neutral'
@@ -128,6 +135,7 @@ def run():
             try:
               MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=sl)
               ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
+              active_trade=True
             except:
               print(current_price,sl)
             state='long'
@@ -140,6 +148,7 @@ def run():
             try:
               MeanReversion.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=sl)
               ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
+              active_trade=True
             except:
               print(current_price,sl)
             state='short'
@@ -148,8 +157,6 @@ def run():
       if output_string!='':
           append_new_line('ETH_meanReversion_log-min.txt',output_string)
           print(output_string)
-      else:
-        print('no change')
 
 
     time_till_next_min=60-time.time()%60-1
