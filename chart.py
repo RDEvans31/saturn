@@ -40,6 +40,12 @@ def h_l_channel(data,window):
     result.dropna(inplace=True)
     return result 
 
+def get_differences(timestamps,data):
+    differences=np.diff(data,1)
+    timestamps=timestamps.shift(periods=-1).dropna()
+    differences=pd.Series(index=timestamps.values,data=differences)
+    return differences
+
 def get_sma(data,window, close=True):
      #using daily for now
     timestamps=data['unix'][window-1:]

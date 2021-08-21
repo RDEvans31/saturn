@@ -1,9 +1,11 @@
 import ccxt
+from scipy.stats import norm
 import price_data as price
 import chart
 import time
 import schedule
 import numpy as np
+import pandas as pd
 from datetime import datetime
 from ftx_client import FtxClient
 
@@ -38,6 +40,65 @@ def append_new_line(file_name, text_to_append):
         # Append text at the end of file
         file_object.write(text_to_append)
 
+def update_model(state,price_data,channel):
+    print('Updating model') #this will need to be routinely called to adjust for recent volatility
+    global long_tp_mean
+    global long_tp_std
+    global short_tp_mean
+    global short_tp_std
+
+    diff=None
+
+    if state=='neutral':
+        high_diff=chart.get_differences(channel['unix'],channel['high'])
+        high_diff=diff.loc[diff>0].abs()
+        low_diff=chart.get_differences(channel['unix'],channel['low'])
+        low_diff=diff.loc[diff<0].abs()
+        diff=pd.concat([high_diff,low_diff])
+
+    if state=='long':
+        diff=chart.get_differences(channel['unix'],channel['high'])
+        diff=diff.loc[diff>0].abs()
+        
+    elif state=='short':
+        diff=chart.get_differences(channel['unix'],channel['low'])
+        diff=diff.loc[diff<0].abs()
+
+    times=diff.index
+    corresponding_opens=[]
+    for i in range(len(price_data['unix'])):
+        if price_data['unix'].iloc[i] in times:
+            current_open=price_data['open'].iloc[i]
+            corresponding_opens.append(current_open)
+    corresponding_opens=np.array(corresponding_opens)
+    difference_metric_series=diff/corresponding_opens
+    mean=difference_metric_series.mean()
+    std=difference_metric_series.std()
+
+    if state=='long':
+        long_tp_mean=mean
+        long_tp_std=std
+    elif state=='short':
+        short_tp_mean=mean
+        short_tp_std=std
+    elif state=='neutral':
+        long_tp_mean=mean
+        long_tp_std=std
+        short_tp_mean=mean
+        short_tp_std=std
+
+def tp_indicator(state,previous,current_price):
+    global long_tp_mean
+    global long_tp_std
+    global short_tp_mean
+    global short_tp_std
+    diff=abs(current_price-previous)
+    if state=='long' and current_price>previous:
+        normalised=(diff-long_tp_mean)/long_tp_std
+    elif state=='short' and current_price<previous:
+        normalised=(diff-short_tp_mean)/short_tp_std
+    return norm.cdf(normalised)>0.85
+
 def transfer_to_savings(amount):
     Savings._post('subaccounts/transfer', {
         "coin":"USD",
@@ -46,6 +107,10 @@ def transfer_to_savings(amount):
         "destination":"Savings"
     })
 
+long_tp_mean=None
+long_tp_std=None
+short_tp_mean=None
+short_tp_std=None
 
 position=ShortTerm.get_position('ETH-PERP',True)
 
@@ -86,21 +151,25 @@ elif position['side']=='sell':
     string = "short from % s, current PnL: % s" % (entry, PnL)
     state='short'
 
+minute=price.get_price_data('1m',symbol='ETH-PERP')
+channel=chart.h_l_channel(minute,60)
+update_model(state,minute,channel)
 print(string)
 
 def run():
     global state
     global trade_capital
     global entry
+
     print(datetime.now())
     hourly=price.get_price_data('1h',symbol='ETH-PERP')
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     trend=chart.identify_trend(hourly,minute,2,16)
-    current_price=minute.iloc[-1]['close']
+    current_price=minute.iloc[-1]['close'].item()
     #for taking small profits
-    bb=chart.get_bb(minute,20,2.5).iloc[-1]
-    short_term_gradient=chart.get_gradient(chart.get_sma(minute,20,False)).iloc[-1]
-
+    channel=chart.h_l_channel(minute,60)
+    previous_high=channel.iloc[-1]['high'].item()
+    previous_low=channel.iloc[-1]['low'].item()
     if state!='neutral':
         
         position=ShortTerm.get_position('ETH-PERP',True)
@@ -108,23 +177,24 @@ def run():
         position_size=float(position['size'])
         PnL=float(position['recentPnl'])
         balance=get_total_balance()
-        print("Current price: % s, PnL: % s" % (str(current_price),PnL))
+        #print("Current price: % s, PnL: % s" % (str(current_price),PnL))
         percentage_profit=(PnL/balance)*100
-        # if percentage_profit>0:
-        #     tp_amount=round(np.log(percentage_profit)/100,2)
-    #check if profits need to be taken
-    # if state=='long':
-    #     if (short_term_gradient>0).all() and (bb['upper']<current_price).all() and percentage_profit>5:
-    #         ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
-    #         position=ShortTerm.get_position('ETH-PERP',True)
-    #         position_size=float(position['size'])
-    #         output_string='Profit taken'
-    # elif state=='short':
-    #     if (short_term_gradient<0).all() and (bb['lower']>current_price).all() and percentage_profit>5:
-    #         ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
-    #         position=ShortTerm.get_position('ETH-PERP',True)
-    #         position_size=float(position['size'])
-    #         output_string='Profit taken'
+        if percentage_profit>0:
+            tp_amount=round(np.log(percentage_profit)/10,2)
+
+    # check if profits need to be taken
+    if state=='long':
+        if tp_indicator(state,previous_high, current_price) and percentage_profit>0.5:
+            ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
+            position=ShortTerm.get_position('ETH-PERP',True)
+            position_size=float(position['size'])
+            output_string='Profit taken'
+    elif state=='short':
+        if tp_indicator(state, previous_low, current_price) and percentage_profit>0.5:
+            ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
+            position=ShortTerm.get_position('ETH-PERP',True)
+            position_size=float(position['size'])
+            output_string='Profit taken'
 
 
     if trend == 'uptrend' and state != 'long':
@@ -164,7 +234,7 @@ def run():
 
     else:
         output_string=''
-        print('no change. state: ' ,state)
+        #print('no change. state: ' ,state)
     if output_string!='':
         print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
@@ -174,7 +244,6 @@ def run():
     time.sleep(time_till_next_min-1)
 
 print('starting main loop')
-# schedule.clear()
 #sleep until just before the next min
 sleeping_time=60-time.time()%60-1
 print('sleeping for ', round(sleeping_time))
