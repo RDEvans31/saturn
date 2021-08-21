@@ -93,6 +93,7 @@ def tp_indicator(state,previous,current_price):
     global short_tp_mean
     global short_tp_std
     diff=abs(current_price-previous)
+    normalised=0
     if state=='long' and current_price>previous:
         normalised=(diff-long_tp_mean)/long_tp_std
     elif state=='short' and current_price<previous:
@@ -161,7 +162,7 @@ def run():
     global trade_capital
     global entry
 
-    print(datetime.now())
+    #print(datetime.now())
     hourly=price.get_price_data('1h',symbol='ETH-PERP')
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     trend=chart.identify_trend(hourly,minute,2,16)

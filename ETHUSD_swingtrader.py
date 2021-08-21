@@ -89,6 +89,7 @@ def tp_indicator(state,previous,current_price):
     global short_tp_mean
     global short_tp_std
     diff=abs(current_price-previous)
+    normalised=0
     if state=='long' and current_price>previous:
         normalised=(diff-long_tp_mean)/long_tp_std
     elif state=='short' and current_price<previous:
@@ -157,7 +158,7 @@ def run():
     global state
     global trade_capital
     global entry
-    print(datetime.now())
+
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     trend=chart.identify_trend(daily,hourly,2,24)
@@ -233,6 +234,7 @@ def run():
         print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
     if state != 'neutral':
+        print(datetime.now())
         print("Current price: % s, PnL: % s" % (str(current_price),PnL))
 
     time_till_next_hour=3600-time.time()%3600
