@@ -192,20 +192,22 @@ def run():
     if state=='long':
         if tp_indicator(state,previous_high, current_price) and percentage_profit>0.5:
             try:
-                ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
+                ftx.create_limit_sell_order('ETH-PERP',tp_amount*position_size,current_price)
                 output_string='Profit taken'
             except:
                 print('Failed to tp')
+            
             position=ShortTerm.get_position('ETH-PERP',True)
             position_size=float(position['size'])
             
     elif state=='short':
         if tp_indicator(state, previous_low, current_price) and percentage_profit>0.5:
             try:
-                ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
+                ftx.create_limit_buy_order('ETH-PERP',tp_amount*position_size,current_price)
                 output_string='Profit taken'
             except:
                 print('Failed to tp')
+            
             position=ShortTerm.get_position('ETH-PERP',True)
             position_size=float(position['size'])
             
