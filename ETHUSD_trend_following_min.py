@@ -225,9 +225,6 @@ def run():
             ftx.create_order('ETH-PERP','market','buy',position_size)
             profit=1-current_price/entry
             balance=get_free_balance()
-            # if profit>0:
-            #     amount=0.2*profit*balance
-            #     transfer_to_savings(amount)
             trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
@@ -242,9 +239,6 @@ def run():
             ftx.create_order('ETH-PERP','market','sell',position_size)
             profit=current_price/entry - 1
             balance=get_free_balance()
-            # if profit>0:
-            #     amount=0.2*profit*balance
-            #     transfer_to_savings(amount)
             trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
