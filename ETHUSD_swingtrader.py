@@ -1,3 +1,4 @@
+from calendar import week
 import ccxt
 import price_data as price
 from scipy.stats import norm
@@ -5,6 +6,7 @@ import chart
 import time
 import schedule
 import numpy as np
+import pandas as pd
 from datetime import datetime
 from ftx_client import FtxClient
 
@@ -38,57 +40,48 @@ def append_new_line(file_name, text_to_append):
 
 def update_model(state,price_data,channel):
     print('Updating model') #this will need to be routinely called to adjust for recent volatility
+
     global long_tp_mean
     global long_tp_std
     global short_tp_mean
     global short_tp_std
-
     diff=None
 
-    if state=='neutral':
-        high_diff=chart.get_differences(channel['unix'],channel['high'])
-        high_diff=diff.loc[diff>0].abs()
-        low_diff=chart.get_differences(channel['unix'],channel['low'])
-        low_diff=diff.loc[diff<0].abs()
-        diff=pd.concat([high_diff,low_diff])
+    high_diff=chart.get_differences(channel['unix'],channel['high'])
+    high_diff=high_diff.loc[high_diff>0].abs()
+    low_diff=chart.get_differences(channel['unix'],channel['low'])
+    low_diff=low_diff.loc[low_diff<0].abs()
 
-    if state=='long':
-        diff=chart.get_differences(channel['unix'],channel['high'])
-        diff=diff.loc[diff>0].abs()
-        
-    elif state=='short':
-        diff=chart.get_differences(channel['unix'],channel['low'])
-        diff=diff.loc[diff<0].abs()
-
-    times=diff.index
-    corresponding_opens=[]
+    long_times=high_diff.index
+    short_times=low_diff.index
+    long_opens=[]
+    short_opens=[]
     for i in range(len(price_data['unix'])):
-        if price_data['unix'].iloc[i] in times:
+        if price_data['unix'].iloc[i] in long_times:
             current_open=price_data['open'].iloc[i]
-            corresponding_opens.append(current_open)
-    corresponding_opens=np.array(corresponding_opens)
-    difference_metric_series=diff/corresponding_opens
-    mean=difference_metric_series.mean()
-    std=difference_metric_series.std()
+            long_opens.append(current_open)
+    for i in range(len(price_data['unix'])):
+        if price_data['unix'].iloc[i] in short_times:
+            current_open=price_data['open'].iloc[i]
+            short_opens.append(current_open)
+    long_opens=np.array(long_opens)
+    short_opens=np.array(short_opens)
+    difference_metric_long=high_diff/long_opens
+    difference_metric_short=low_diff/short_opens
 
-    if state=='long':
-        long_tp_mean=mean
-        long_tp_std=std
-    elif state=='short':
-        short_tp_mean=mean
-        short_tp_std=std
-    elif state=='neutral':
-        long_tp_mean=mean
-        long_tp_std=std
-        short_tp_mean=mean
-        short_tp_std=std
+
+    long_tp_mean=difference_metric_long.mean()
+    long_tp_std=difference_metric_long.std()
+
+    short_tp_mean=difference_metric_short.mean()
+    short_tp_std=difference_metric_short.std()
 
 def tp_indicator(state,previous,current_price):
     global long_tp_mean
     global long_tp_std
     global short_tp_mean
     global short_tp_std
-    diff=abs(current_price-previous)
+    diff=abs(current_price-previous)/current_price
     normalised=0
     if state=='long' and current_price>previous:
         normalised=(diff-long_tp_mean)/long_tp_std
@@ -148,9 +141,9 @@ elif position['side']=='sell':
     string = "short from % s, current PnL: % s" % (entry, PnL)
     state='short'
 
-minute=price.get_price_data('1h',symbol='ETH-PERP')
-channel=chart.h_l_channel(minute,24)
-update_model(state,minute,channel)
+hourly=price.get_price_data('1h',symbol='ETH/USD')
+channel=chart.h_l_channel(hourly,24)
+update_model(state,hourly,channel)
 
 print(string)
 
@@ -167,6 +160,8 @@ def run():
     channel=chart.h_l_channel(hourly,24)
     previous_high=channel.iloc[-1]['high'].item()
     previous_low=channel.iloc[-1]['low'].item()
+    if datetime.today.weekday()==0:
+        update_model(state,hourly,channel)
 
     if state!='neutral':
         position=main.get_position('ETH-PERP',True)
@@ -176,20 +171,27 @@ def run():
         balance=get_total_balance()
         percentage_profit=(PnL/balance)*100
         if percentage_profit>0:
-            tp_amount=round(np.log(percentage_profit)/50,2)
+            tp_amount=round(np.log(percentage_profit)/20,2)
     #check if profits need to be taken
     if state=='long':
         if tp_indicator(state,previous_high, current_price) and percentage_profit>1:
-            ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
+            try:
+                ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
+                output_string='Profit taken'
+            except:
+                print('Failed to tp')
             position=main.get_position('ETH-PERP',True)
             position_size=float(position['size'])
-            output_string='Profit taken'
     elif state=='short':
         if tp_indicator(state, previous_low, current_price) and percentage_profit>1:
-            ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
+            try:
+                ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
+                output_string='Profit taken'
+            except:
+                print('Failed to tp')
             position=main.get_position('ETH-PERP',True)
             position_size=float(position['size'])
-            output_string='Profit taken'
+
 
 
     if trend == 'uptrend' and state != 'long':

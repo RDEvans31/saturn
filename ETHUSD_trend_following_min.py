@@ -51,9 +51,9 @@ def update_model(state,price_data,channel):
 
     if state=='neutral':
         high_diff=chart.get_differences(channel['unix'],channel['high'])
-        high_diff=diff.loc[diff>0].abs()
+        high_diff=high_diff.loc[high_diff>0].abs()
         low_diff=chart.get_differences(channel['unix'],channel['low'])
-        low_diff=diff.loc[diff<0].abs()
+        low_diff=low_diff.loc[low_diff<0].abs()
         diff=pd.concat([high_diff,low_diff])
 
     if state=='long':
@@ -92,7 +92,7 @@ def tp_indicator(state,previous,current_price):
     global long_tp_std
     global short_tp_mean
     global short_tp_std
-    diff=abs(current_price-previous)
+    diff=abs(current_price-previous)/current_price
     normalised=0
     if state=='long' and current_price>previous:
         normalised=(diff-long_tp_mean)/long_tp_std
@@ -154,7 +154,8 @@ elif position['side']=='sell':
 
 minute=price.get_price_data('1m',symbol='ETH-PERP')
 channel=chart.h_l_channel(minute,60)
-update_model(state,minute,channel)
+update_model('neutral',minute,channel)
+print(long_tp_mean,long_tp_std, short_tp_mean, short_tp_std)
 print(string)
 
 def run():
@@ -171,6 +172,10 @@ def run():
     channel=chart.h_l_channel(minute,60)
     previous_high=channel.iloc[-1]['high'].item()
     previous_low=channel.iloc[-1]['low'].item()
+    now=datetime.now()
+    if now.hour == 12 and now.minute==5: #at 12:05 everyday it should reset
+        update_model(state,minute,channel)
+
     if state!='neutral':
         
         position=ShortTerm.get_position('ETH-PERP',True)
@@ -186,16 +191,24 @@ def run():
     # check if profits need to be taken
     if state=='long':
         if tp_indicator(state,previous_high, current_price) and percentage_profit>0.5:
-            ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
+            try:
+                ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
+                output_string='Profit taken'
+            except:
+                print('Failed to tp')
             position=ShortTerm.get_position('ETH-PERP',True)
             position_size=float(position['size'])
-            output_string='Profit taken'
+            
     elif state=='short':
         if tp_indicator(state, previous_low, current_price) and percentage_profit>0.5:
-            ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
+            try:
+                ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
+                output_string='Profit taken'
+            except:
+                print('Failed to tp')
             position=ShortTerm.get_position('ETH-PERP',True)
             position_size=float(position['size'])
-            output_string='Profit taken'
+            
 
 
     if trend == 'uptrend' and state != 'long':
