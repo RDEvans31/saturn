@@ -187,13 +187,14 @@ def run():
         #print("Current price: % s, PnL: % s" % (str(current_price),PnL))
         percentage_profit=(PnL/balance)*100
         if percentage_profit>0:
-            tp_amount=round(np.log(percentage_profit)/10,2)
+            tp_amount=round((np.log(percentage_profit)/10)*position_size,3)
 
     # check if profits need to be taken
     if state=='long':
         if tp_indicator(state,previous_high, current_price) and percentage_profit>0.5:
             try:
-                ftx.create_limit_sell_order('ETH-PERP',tp_amount*position_size,current_price)
+                ftx.create_limit_sell_order('ETH-PERP',tp_amount,current_price)
+                print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
             except:
                 print(datetime.now())
@@ -205,7 +206,8 @@ def run():
     elif state=='short':
         if tp_indicator(state, previous_low, current_price) and percentage_profit>0.5:
             try:
-                ftx.create_limit_buy_order('ETH-PERP',tp_amount*position_size,current_price)
+                ftx.create_limit_buy_order('ETH-PERP',tp_amount,current_price)
+                print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
             except:
                 print(datetime.now())
