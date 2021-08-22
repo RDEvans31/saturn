@@ -9,6 +9,7 @@ import pandas as pd
 from datetime import datetime
 from ftx_client import FtxClient
 
+
 ftx = ccxt.ftx({
     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
     'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
@@ -163,7 +164,7 @@ def run():
     global trade_capital
     global entry
 
-    #print(datetime.now())
+    output_string=''
     hourly=price.get_price_data('1h',symbol='ETH-PERP')
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     trend=chart.identify_trend(hourly,minute,2,16)
@@ -195,7 +196,8 @@ def run():
                 ftx.create_limit_sell_order('ETH-PERP',tp_amount*position_size,current_price)
                 output_string='Profit taken'
             except:
-                print('Failed to tp')
+                print(datetime.now())
+                print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
             
             position=ShortTerm.get_position('ETH-PERP',True)
             position_size=float(position['size'])
@@ -206,7 +208,8 @@ def run():
                 ftx.create_limit_buy_order('ETH-PERP',tp_amount*position_size,current_price)
                 output_string='Profit taken'
             except:
-                print('Failed to tp')
+                print(datetime.now())
+                print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
             
             position=ShortTerm.get_position('ETH-PERP',True)
             position_size=float(position['size'])
@@ -248,10 +251,8 @@ def run():
         state='short'
         entry=current_price
 
-    else:
-        output_string=''
-        #print('no change. state: ' ,state)
     if output_string!='':
+        print(print(datetime.now()))
         print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
 
