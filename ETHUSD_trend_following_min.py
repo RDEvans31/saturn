@@ -49,7 +49,7 @@ def update_model(state,price_data,channel):
     global short_tp_std
 
     diff=None
-
+    channel=channel.iloc[1100:]
     if state=='neutral':
         high_diff=chart.get_differences(channel['unix'],channel['high'])
         high_diff=high_diff.loc[high_diff>0].abs()
@@ -93,12 +93,16 @@ def tp_indicator(state,previous,current_price):
     global long_tp_std
     global short_tp_mean
     global short_tp_std
+    # print('Means and stds: ', long_tp_mean,long_tp_std,short_tp_mean,short_tp_std)
     diff=abs(current_price-previous)/current_price
+    # print('diff: ', diff)
     normalised=0
+    # print('Checking state, previous, current: %s, %s, %s' % (state,previous,current_price))
     if state=='long' and current_price>previous:
         normalised=(diff-long_tp_mean)/long_tp_std
     elif state=='short' and current_price<previous:
         normalised=(diff-short_tp_mean)/short_tp_std
+    # print(normalised,norm.cdf(normalised))
     return norm.cdf(normalised)>0.85
 
 def transfer_to_savings(amount):
@@ -116,6 +120,9 @@ short_tp_std=None
 
 position=ShortTerm.get_position('ETH-PERP',True)
 
+total_runtime=0
+start_time=time.time()
+start_minute=datetime.now().minute
 
 if position==None or position['size']==0:
     string = 'No position, starting state: neutral'
@@ -158,12 +165,15 @@ channel=chart.h_l_channel(minute,60)
 update_model('neutral',minute,channel)
 print(long_tp_mean,long_tp_std, short_tp_mean, short_tp_std)
 print(string)
-
+total_runtime=total_runtime+(time.time()-start_time)
+print('Total runtime: ', total_runtime)
 def run():
     global state
     global trade_capital
     global entry
-
+    global total_runtime
+    global start_minute
+    start_time=time.time()
     output_string=''
     hourly=price.get_price_data('1h',symbol='ETH-PERP')
     minute=price.get_price_data('1m',symbol='ETH-PERP')
@@ -254,7 +264,12 @@ def run():
 
 
     time_till_next_min=60-time.time()%60-1
+    total_runtime=total_runtime+(time.time()-start_time)
+    if now.minute==start_minute:
+        print('Total runtime: ',total_runtime)
     time.sleep(time_till_next_min-1)
+
+    
 
 print('starting main loop')
 #sleep until just before the next min

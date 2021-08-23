@@ -46,7 +46,7 @@ def update_model(state,price_data,channel):
     global short_tp_mean
     global short_tp_std
     diff=None
-
+    channel=channel.iloc[1100:]
     high_diff=chart.get_differences(channel['unix'],channel['high'])
     high_diff=high_diff.loc[high_diff>0].abs()
     low_diff=chart.get_differences(channel['unix'],channel['low'])
@@ -240,6 +240,7 @@ def run():
         print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
     if state != 'neutral':
+        print(datetime.now())
         print("Date: %s, Current price: % s, PnL: % s" % (str(datetime.now()),str(current_price),PnL))
 
     time_till_next_hour=3600-time.time()%3600
