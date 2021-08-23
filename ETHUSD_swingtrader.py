@@ -147,11 +147,12 @@ update_model('neutral',hourly,channel)
 
 print(long_tp_mean,long_tp_std, short_tp_mean, short_tp_std)
 print(string)
-
+model_updated=False
 def run():
     global state
     global trade_capital
     global entry
+    global model_updated
 
     output_string=''
     daily=price.get_price_data('1d',symbol='ETH/USD')
@@ -162,8 +163,11 @@ def run():
     channel=chart.h_l_channel(hourly,24)
     previous_high=channel.iloc[-1]['high'].item()
     previous_low=channel.iloc[-1]['low'].item()
-    if datetime.now().weekday()==0:
+    if datetime.now().weekday()==0 and not(model_updated):
         update_model(state,hourly,channel)
+        model_updated=True
+    elif datetime.now().weekday()!=0:
+        model_updated=False
 
     if state!='neutral':
         position=main.get_position('ETH-PERP',True)
