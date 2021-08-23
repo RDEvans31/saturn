@@ -240,7 +240,6 @@ def run():
         print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
     if state != 'neutral':
-        print(datetime.now())
         print("Date: %s, Current price: % s, PnL: % s" % (str(datetime.now()),str(current_price),PnL))
 
     time_till_next_hour=3600-time.time()%3600
