@@ -162,7 +162,7 @@ def run():
     channel=chart.h_l_channel(hourly,24)
     previous_high=channel.iloc[-1]['high'].item()
     previous_low=channel.iloc[-1]['low'].item()
-    if datetime.today.weekday()==0:
+    if datetime.now().weekday()==0:
         update_model(state,hourly,channel)
 
     if state!='neutral':

@@ -93,53 +93,53 @@ def run():
     position=MeanReversion.get_position('ETH-PERP',True)
     position_size=float(position['size'])
     active_trade=position_size!=0
+    print('Channel: %s, open price: %s, current_price: %s ' % ((str(channel_high)+', '+str(channel_low)), current_price, hourly.iloc[-1]['close']))
+    # if active_trade:
+    #   print('Active trade. ')
+    #   print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
+    #   #check for conditions to close trade
+    #   outcome, side = check_close_trade(state,current_price,current_channel)
+    #   if outcome:
+    #     ftx_ccxt.create_order('ETH-PERP','market',side,position_size)
+    #     state=='neutral'
+    #     MeanReversion.cancel_orders()
+    #     active_trade=False
+    #   else:
+    #     print('Trade still active')
+    # else:
+    #   #check if sl was hit
+    #   if sl!=None:
+    #     if price_hit(previous_candle,sl):
+    #       sl=None
+    #       print('Stop loss hit')
+    #       append_new_line('ETH_meanReversion_log.txt','Stop loss hit.')
 
-    if active_trade:
-      print('Active trade. ')
-      print('Channel: %s, open price: %s' % ((str(channel_high)+', '+str(channel_low)), current_price))
-      #check for conditions to close trade
-      outcome, side = check_close_trade(state,current_price,current_channel)
-      if outcome:
-        ftx_ccxt.create_order('ETH-PERP','market',side,position_size)
-        state=='neutral'
-        MeanReversion.cancel_orders()
-        active_trade=False
-      else:
-        print('Trade still active')
-    else:
-      #check if sl was hit
-      if sl!=None:
-        if price_hit(previous_candle,sl):
-          sl=None
-          print('Stop loss hit')
-          append_new_line('ETH_meanReversion_log.txt','Stop loss hit.')
+    #   position_size=round((get_free_balance())/current_price,3)
 
-      position_size=round((get_free_balance())/current_price,3)
-
-      if current_gradient>0 and current_price<channel_low:
-          output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-          ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
-          #ftx_ccxt.create_limit_buy_order('ETH-PERP',position_size,current_price)
-          sl=current_price-sl_multiple*current_atr
-          risk=abs(sl/current_price -1 )
-          if (risk<=0.03):
-            MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=sl)
-            state='long'
-      elif current_gradient<0 and current_price>channel_high:
-          output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-          ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
-          sl=current_price+sl_multiple*current_atr
-          risk=abs(sl/current_price -1 )
-          if (risk<=0.03):
-            MeanReversion.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=sl)
-            state='short'
-      else:
-        output_string=''
-      if output_string!='':
-          append_new_line('ETH_meanReversion_log.txt',output_string)
-          print(output_string)
-      else:
-        print('no change')
+    #   if current_gradient>0 and current_price<channel_low:
+    #       output_string='long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+    #       ftx_ccxt.create_order('ETH-PERP','market','buy',position_size)
+    #       #ftx_ccxt.create_limit_buy_order('ETH-PERP',position_size,current_price)
+    #       sl=current_price-sl_multiple*current_atr
+    #       risk=abs(sl/current_price -1 )
+    #       if (risk<=0.03):
+    #         MeanReversion.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=sl)
+    #         state='long'
+    #   elif current_gradient<0 and current_price>channel_high:
+    #       output_string='short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+    #       ftx_ccxt.create_order('ETH-PERP','market','sell',position_size)
+    #       sl=current_price+sl_multiple*current_atr
+    #       risk=abs(sl/current_price -1 )
+    #       if (risk<=0.03):
+    #         MeanReversion.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=sl)
+    #         state='short'
+    #   else:
+    #     output_string=''
+    #   if output_string!='':
+    #       append_new_line('ETH_meanReversion_log.txt',output_string)
+    #       print(output_string)
+    #   else:
+    #     print('no change')
 
 
     time_till_next_hour=3600-time.time()%3600
