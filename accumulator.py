@@ -28,12 +28,7 @@ pairs=[
             'symbol':'XRP/USD',
             'recurring_amount':, #buy 10 dollars worth everytime this is run
         },
-        {
-            'asset' : 'ETH',
-            'symbol':'ETH/USD',
-            'recurring_amount':5, #buy 10 dollars worth everytime this is run
-        },
-    ]
+
 for currency in pairs:
     
     print(symbol,quantity,current_price)

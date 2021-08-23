@@ -143,8 +143,9 @@ elif position['side']=='sell':
 
 hourly=price.get_price_data('1h',symbol='ETH/USD')
 channel=chart.h_l_channel(hourly,24)
-update_model(state,hourly,channel)
+update_model('neutral',hourly,channel)
 
+print(long_tp_mean,long_tp_std, short_tp_mean, short_tp_std)
 print(string)
 
 def run():
@@ -152,6 +153,7 @@ def run():
     global trade_capital
     global entry
 
+    output_string=''
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     trend=chart.identify_trend(daily,hourly,2,24)
@@ -176,19 +178,24 @@ def run():
     if state=='long':
         if tp_indicator(state,previous_high, current_price) and percentage_profit>1:
             try:
-                ftx.create_order('ETH-PERP','market','sell',tp_amount*position_size)
+                ftx.create_limit_sell_order('ETH-PERP',tp_amount,current_price)
+                print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
             except:
-                print('Failed to tp')
+                print(datetime.now())
+                print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
+            
             position=main.get_position('ETH-PERP',True)
             position_size=float(position['size'])
     elif state=='short':
         if tp_indicator(state, previous_low, current_price) and percentage_profit>1:
             try:
-                ftx.create_order('ETH-PERP','market','buy',tp_amount*position_size)
+                ftx.create_limit_buy_order('ETH-PERP',tp_amount,current_price)
+                print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
             except:
-                print('Failed to tp')
+                print(datetime.now())
+                print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
             position=main.get_position('ETH-PERP',True)
             position_size=float(position['size'])
 
@@ -229,15 +236,12 @@ def run():
         state='short'
         entry=current_price
 
-    else:
-        output_string=''
-        print('no change. state: ' ,state)
     if output_string!='':
         print(output_string)
         append_new_line('ETH_swingtrader_log.txt',output_string)
     if state != 'neutral':
         print(datetime.now())
-        print("Current price: % s, PnL: % s" % (str(current_price),PnL))
+        print("Date: %s, Current price: % s, PnL: % s" % (str(datetime.now()),str(current_price),PnL))
 
     time_till_next_hour=3600-time.time()%3600
     time.sleep(time_till_next_hour-5)

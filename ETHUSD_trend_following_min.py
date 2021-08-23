@@ -248,7 +248,7 @@ def run():
         entry=current_price
 
     if output_string!='':
-        print(print(datetime.now()))
+        print(datetime.now())
         print(output_string)
         append_new_line('ETH_min_log.txt',output_string)
 
