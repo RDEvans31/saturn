@@ -187,7 +187,7 @@ def run():
         #print("Current price: % s, PnL: % s" % (str(current_price),PnL))
         percentage_profit=(PnL/balance)*100
         if percentage_profit>0:
-            tp_amount=round((np.log(percentage_profit)/10)*position_size,3)
+            tp_amount=round((np.log(percentage_profit+0.5)/20)*position_size,3)
 
     # check if profits need to be taken
     if state=='long':
@@ -250,7 +250,7 @@ def run():
     if output_string!='':
         print(print(datetime.now()))
         print(output_string)
-        append_new_line('ETH_swingtrader_log.txt',output_string)
+        append_new_line('ETH_min_log.txt',output_string)
 
 
     time_till_next_min=60-time.time()%60-1
