@@ -38,7 +38,7 @@ def append_new_line(file_name, text_to_append):
         # Append text at the end of file
         file_object.write(text_to_append)
 
-def update_model(state,price_data,channel):
+def update_model(state,price_data,channel_full):
     print('Updating model') #this will need to be routinely called to adjust for recent volatility
 
     global long_tp_mean
@@ -46,7 +46,7 @@ def update_model(state,price_data,channel):
     global short_tp_mean
     global short_tp_std
     diff=None
-    channel=channel.iloc[1100:]
+    channel=channel_full.iloc[1100:]
     high_diff=chart.get_differences(channel['unix'],channel['high'])
     high_diff=high_diff.loc[high_diff>0].abs()
     low_diff=chart.get_differences(channel['unix'],channel['low'])
@@ -163,10 +163,10 @@ def run():
     channel=chart.h_l_channel(hourly,24)
     previous_high=channel.iloc[-1]['high'].item()
     previous_low=channel.iloc[-1]['low'].item()
-    if datetime.now().weekday()==0 and not(model_updated):
+    if datetime.now().weekday()%2==0 and not(model_updated):
         update_model(state,hourly,channel)
         model_updated=True
-    elif datetime.now().weekday()!=0:
+    elif not(datetime.now().weekday()%2==0):
         model_updated=False
 
     if state!='neutral':

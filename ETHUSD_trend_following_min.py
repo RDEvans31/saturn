@@ -49,13 +49,36 @@ def update_model(state,price_data,channel):
     global short_tp_std
 
     diff=None
-    channel=channel.iloc[1100:]
     if state=='neutral':
         high_diff=chart.get_differences(channel['unix'],channel['high'])
         high_diff=high_diff.loc[high_diff>0].abs()
         low_diff=chart.get_differences(channel['unix'],channel['low'])
         low_diff=low_diff.loc[low_diff<0].abs()
-        diff=pd.concat([high_diff,low_diff])
+        long_times=high_diff.index
+        short_times=low_diff.index
+        long_opens=[]
+        short_opens=[]
+        for i in range(len(price_data['unix'])):
+            if price_data['unix'].iloc[i] in long_times:
+                current_open=price_data['open'].iloc[i]
+                long_opens.append(current_open)
+        for i in range(len(price_data['unix'])):
+            if price_data['unix'].iloc[i] in short_times:
+                current_open=price_data['open'].iloc[i]
+                short_opens.append(current_open)
+
+        long_opens=np.array(long_opens)
+        short_opens=np.array(short_opens)
+        difference_metric_long=high_diff/long_opens
+        difference_metric_short=low_diff/short_opens
+
+
+        long_tp_mean=difference_metric_long.mean()
+        long_tp_std=difference_metric_long.std()
+
+        short_tp_mean=difference_metric_short.mean()
+        short_tp_std=difference_metric_short.std()
+        return
 
     if state=='long':
         diff=chart.get_differences(channel['unix'],channel['high'])
@@ -82,11 +105,6 @@ def update_model(state,price_data,channel):
     elif state=='short':
         short_tp_mean=mean
         short_tp_std=std
-    elif state=='neutral':
-        long_tp_mean=mean
-        long_tp_std=std
-        short_tp_mean=mean
-        short_tp_std=std
 
 def tp_indicator(state,previous,current_price):
     global long_tp_mean
@@ -95,11 +113,11 @@ def tp_indicator(state,previous,current_price):
     global short_tp_std
     # print('Means and stds: ', long_tp_mean,long_tp_std,short_tp_mean,short_tp_std)
     diff=abs(current_price-previous)/current_price
-    # print('diff: ', diff)
+    print('state: %s, previous %s: current: %s' % (state,previous,current_price))
     normalised=0
     mean=None
     std=None
-    indicator=False
+    #indicator=False
     if state=='long' and current_price>previous:
         normalised=(diff-long_tp_mean)/long_tp_std
         mean=long_tp_mean
@@ -110,13 +128,14 @@ def tp_indicator(state,previous,current_price):
         normalised=(diff-short_tp_mean)/short_tp_std
         mean=short_tp_mean
         std=short_tp_std
-        indicator=True
+        #indicator=True
     
-    if not(norm.cdf(normalised)>0.85):
-        print('no profit taken with probabilistic model: ')
-        print('State: %s, Diff: %s, mean: %s, std: %s, p-value= %s' % (state, diff, mean, std, norm.cdf(normalised)))
+    return norm.cdf(normalised)>0.85
+    #if not(norm.cdf(normalised)>0.85):
+    #    print('no profit taken with probabilistic model: ')
+    #    print('State: %s, Diff: %s, mean: %s, std: %s, p-value= %s' % (state, diff, mean, std, norm.cdf(normalised)))
 
-    print('indicator=',indicator)
+    #print('indicator=',indicator)
     return indicator
 
 def transfer_to_savings(amount):
@@ -211,11 +230,11 @@ def run():
         #print("Current price: % s, PnL: % s" % (str(current_price),PnL))
         percentage_profit=(PnL/balance)*100
         if percentage_profit>0:
-            tp_amount=round((np.log(percentage_profit+0.5)/20)*position_size,3)
+            tp_amount=round((np.log(percentage_profit+0.7)/20)*position_size,3)
 
     # check if profits need to be taken
     if state=='long':
-        if tp_indicator(state,previous_high, current_price) and percentage_profit>0.5:
+        if tp_indicator(state,previous_high, current_price) and percentage_profit>0.3:
             try:
                 ftx.create_limit_sell_order('ETH-PERP',tp_amount,current_price)
                 print('tp_amount: %s' % (tp_amount))
@@ -228,7 +247,7 @@ def run():
             position_size=float(position['size'])
             
     elif state=='short':
-        if tp_indicator(state, previous_low, current_price) and percentage_profit>0.5:
+        if tp_indicator(state, previous_low, current_price) and percentage_profit>0.3:
             try:
                 ftx.create_limit_buy_order('ETH-PERP',tp_amount,current_price)
                 print('tp_amount: %s' % (tp_amount))
