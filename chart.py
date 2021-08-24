@@ -87,7 +87,7 @@ def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_peri
     lower_bound=channel.iloc[-1]['low']
     day=max(gradient.index)
     five_opens=short_term.tail(n=5)['open'].values
-    uptrend=gradient.loc[day]>0
+    uptrend=gradient.iloc[-1].item()>0
     current=five_opens[-1]
 
     if all(opens>upper_bound for opens in five_opens) and uptrend.all():
