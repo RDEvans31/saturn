@@ -90,9 +90,9 @@ def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_peri
     uptrend=gradient.iloc[-1].item()>0
     current=five_opens[-1]
 
-    if all(opens>upper_bound for opens in five_opens) and uptrend.all():
+    if all(opens>upper_bound for opens in five_opens) and uptrend:
         return 'uptrend'
-    elif all(opens<lower_bound for opens in five_opens) and not(uptrend.all()):
+    elif all(opens<lower_bound for opens in five_opens) and not(uptrend):
         return 'downtrend'
     else:
         return 'neutral'
