@@ -95,11 +95,27 @@ def tp_indicator(state,previous,current_price):
     global short_tp_std
     diff=abs(current_price-previous)/current_price
     normalised=0
+    mean=None
+    std=None
+    indicator=False
     if state=='long' and current_price>previous:
         normalised=(diff-long_tp_mean)/long_tp_std
+        mean=long_tp_mean
+        std=long_tp_std
+        indicator=True
+        
     elif state=='short' and current_price<previous:
         normalised=(diff-short_tp_mean)/short_tp_std
-    return norm.cdf(normalised)>0.85
+        mean=short_tp_mean
+        std=short_tp_std
+        indicator=True
+    
+    if not(norm.cdf(normalised)>0.85):
+        print('no profit taken with probabilistic model: ')
+        print('State: %s, Diff: %s, mean: %s, std: %s, p-value= %s' % (state, diff, mean, std, norm.cdf(normalised)))
+
+    print('indicator=',indicator)
+    return indicator
 
 def transfer_to_savings(amount):
     Savings._post('subaccounts/transfer', {
