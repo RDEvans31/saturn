@@ -3,7 +3,7 @@ from scipy.stats import norm
 import price_data as price
 import chart
 import time
-import schedule
+from scheduler import Scheduler
 import numpy as np
 import pandas as pd
 import datetime as dt 
@@ -315,6 +315,5 @@ scheduler=Scheduler()
 scheduler.minutely(dt.time(second=1), run)
 print(scheduler)
 time.sleep(sleeping_time)
-
 while True:
     scheduler.exec_jobs()

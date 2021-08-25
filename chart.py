@@ -23,7 +23,7 @@ def get_gradient(ma):
     gradient_shifted=gradient.shift(periods=1)
     gradient_shifted=gradient_shifted.dropna()
     return gradient_shifted
-    
+
 
 def ma_channel(data, window):
     timestamps=data['unix']
@@ -35,8 +35,8 @@ def ma_channel(data, window):
 
 def h_l_channel(data,window):
     timestamps=data['unix']
-    high=data.rolling(window).max()['open'].shift(periods=1)
-    low=data.rolling(window).min()['open'].shift(periods=1)
+    high=data.rolling(window).max()['open']
+    low=data.rolling(window).min()['open']
     result=pd.DataFrame({'unix':timestamps,'high':high, 'low':low})
     result.dropna(inplace=True)
     return result 
