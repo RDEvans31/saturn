@@ -10,6 +10,7 @@ from scipy.stats import norm
 import math
 import price_data as price
 import sys 
+from datetime import datetime
 
 #trend analysis
 
@@ -79,16 +80,21 @@ def get_dema(data,window,close=False):
     return pd.DataFrame({'unix': timestamps,'value':dema})
 
 #swing trading
-def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_period): #using moving average channel and gradient of large timeframe moving average
+def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_period, minute=False): #using moving average channel and gradient of large timeframe moving average
     long_ema=get_ema(long_term,long_term_ema_period,False)
     channel=ma_channel(short_term,short_term_ma_period)
     gradient = get_gradient(long_ema)
     upper_bound=channel.iloc[-1]['high']
     lower_bound=channel.iloc[-1]['low']
-    five_opens=short_term.tail(n=5)['open'].values
+    if minute:
+        five_opens=short_term.tail(n=5)['close'].values
+    else:
+        five_opens=short_term.tail(n=5)['open'].values
     uptrend=gradient.iloc[-1].item()>0
     current=five_opens[-1]
-
+    print('Current datetime: ', datetime.now())
+    print('Candle time: ', pd.to_datetime(short_term.iloc[-1]['unix'], unit='ms'))
+    print('5 opens: %s, actual current: ' % five_opens, short_term.iloc[-1]['close'].item())
     if all(opens>upper_bound for opens in five_opens) and uptrend:
         return 'uptrend'
     elif all(opens<lower_bound for opens in five_opens) and not(uptrend):

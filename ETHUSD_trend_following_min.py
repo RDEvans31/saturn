@@ -1,5 +1,4 @@
 import ccxt
-from scheduler.core import Scheduler
 from scipy.stats import norm
 import price_data as price
 import chart
@@ -7,9 +6,9 @@ import time
 import schedule
 import numpy as np
 import pandas as pd
-from datetime import datetime
+import datetime as dt 
 from ftx_client import FtxClient
-import scheduler
+from scheduler import Scheduler
 
 
 ftx = ccxt.ftx({
@@ -157,7 +156,7 @@ position=ShortTerm.get_position('ETH-PERP',True)
 
 total_runtime=0
 start_time=time.time()
-start_minute=datetime.now().minute
+start_minute=dt.datetime.now().minute
 
 if position==None or position['size']==0:
     string = 'No position, starting state: neutral'
@@ -214,11 +213,13 @@ def run():
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     trend=chart.identify_trend(hourly,minute,6,16)
     current_price=minute.iloc[-1]['close'].item()
+    
     #for taking small profits
     channel=chart.h_l_channel(minute,60)
     previous_high=channel.iloc[-1]['high'].item()
     previous_low=channel.iloc[-1]['low'].item()
-    now=datetime.now()
+    now=dt.datetime.now()
+
     if now.hour == 12 and now.minute==5: #at 12:05 everyday it should reset
         update_model(state,minute,channel)
 
@@ -242,7 +243,7 @@ def run():
                 print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
             except:
-                print(datetime.now())
+                print(dt.datetime.now())
                 print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
             
             position=ShortTerm.get_position('ETH-PERP',True)
@@ -255,7 +256,7 @@ def run():
                 print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
             except:
-                print(datetime.now())
+                print(dt.datetime.now())
                 print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
             
             position=ShortTerm.get_position('ETH-PERP',True)
@@ -265,7 +266,7 @@ def run():
 
     if trend == 'uptrend' and state != 'long':
 
-        output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+        output_string='flip long @ '+ str(current_price)+' :'+dt.datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
         if state=='short':#close position
             ftx.create_order('ETH-PERP','market','buy',position_size)
             profit=1-current_price/entry
@@ -279,7 +280,7 @@ def run():
         entry=current_price
 
     elif trend == 'downtrend' and state != 'short':
-        output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+        output_string='flip short @ '+ str(current_price)+' :'+dt.datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
         if state=='long':#close position
             ftx.create_order('ETH-PERP','market','sell',position_size)
             profit=current_price/entry - 1
@@ -293,7 +294,7 @@ def run():
         entry=current_price
 
     if output_string!='':
-        print(datetime.now())
+        print(dt.datetime.now())
         print(output_string)
         append_new_line('ETH_min_log.txt',output_string)
 
@@ -310,8 +311,10 @@ print('starting main loop')
 #sleep until just before the next min
 sleeping_time=60-time.time()%60-1
 print('sleeping for ', round(sleeping_time))
+scheduler=Scheduler()
+scheduler.minutely(dt.time(second=1), run)
+print(scheduler)
 time.sleep(sleeping_time)
-scheduler=Scheduler(tzinfo=datetime.timezone.utc)
-schedule.minutely(datetime.time(second=1), run)
+
 while True:
     scheduler.exec_jobs()
