@@ -92,9 +92,9 @@ def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_peri
         five_opens=short_term.tail(n=5)['open'].values
     uptrend=gradient.iloc[-1].item()>0
     current=five_opens[-1]
-    print('Current datetime: ', datetime.now())
-    print('Candle time: ', pd.to_datetime(short_term.iloc[-1]['unix'], unit='ms'))
-    print('5 opens: %s, actual current: ' % five_opens, short_term.iloc[-1]['close'].item())
+    # print('Current datetime: ', datetime.now())
+    # print('Candle time: ', pd.to_datetime(short_term.iloc[-1]['unix'], unit='ms'))
+    # print('5 opens: %s, actual current: ' % five_opens, short_term.iloc[-1]['close'].item())
     if all(opens>upper_bound for opens in five_opens) and uptrend:
         return 'uptrend'
     elif all(opens<lower_bound for opens in five_opens) and not(uptrend):

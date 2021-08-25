@@ -164,7 +164,7 @@ if position==None or position['size']==0:
     hourly=price.get_price_data('1h',symbol='ETH-PERP')
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     current_price=minute.iloc[-1]['close']
-    trend=chart.identify_trend(hourly,minute,6,16)
+    trend=chart.identify_trend(hourly,minute,6,16, True)
     trade_capital=get_free_balance()
     position_size=round(trade_capital/current_price,3)
     if trend=='uptrend':
@@ -301,8 +301,8 @@ def run():
 
     time_till_next_min=60-time.time()%60-1
     total_runtime=total_runtime+(time.time()-start_time)
-    if now.minute==start_minute:
-        print('Total runtime: ',total_runtime)
+    # if now.minute==start_minute:
+    #     print('Total runtime: ',total_runtime)
     time.sleep(time_till_next_min-1)
 
     
