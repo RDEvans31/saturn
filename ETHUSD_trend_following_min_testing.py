@@ -3,12 +3,11 @@ from scipy.stats import norm
 import price_data as price
 import chart
 import time
-from scheduler import Scheduler
+import schedule
 import numpy as np
 import pandas as pd
-import datetime as dt 
+from datetime import datetime
 from ftx_client import FtxClient
-from scheduler import Scheduler
 
 
 ftx = ccxt.ftx({
@@ -50,36 +49,13 @@ def update_model(state,price_data,channel):
     global short_tp_std
 
     diff=None
+
     if state=='neutral':
         high_diff=chart.get_differences(channel['unix'],channel['high'])
         high_diff=high_diff.loc[high_diff>0].abs()
         low_diff=chart.get_differences(channel['unix'],channel['low'])
         low_diff=low_diff.loc[low_diff<0].abs()
-        long_times=high_diff.index
-        short_times=low_diff.index
-        long_opens=[]
-        short_opens=[]
-        for i in range(len(price_data['unix'])):
-            if price_data['unix'].iloc[i] in long_times:
-                current_open=price_data['open'].iloc[i]
-                long_opens.append(current_open)
-        for i in range(len(price_data['unix'])):
-            if price_data['unix'].iloc[i] in short_times:
-                current_open=price_data['open'].iloc[i]
-                short_opens.append(current_open)
-
-        long_opens=np.array(long_opens)
-        short_opens=np.array(short_opens)
-        difference_metric_long=high_diff/long_opens
-        difference_metric_short=low_diff/short_opens
-
-
-        long_tp_mean=difference_metric_long.mean()
-        long_tp_std=difference_metric_long.std()
-
-        short_tp_mean=difference_metric_short.mean()
-        short_tp_std=difference_metric_short.std()
-        return
+        diff=pd.concat([high_diff,low_diff])
 
     if state=='long':
         diff=chart.get_differences(channel['unix'],channel['high'])
@@ -106,38 +82,24 @@ def update_model(state,price_data,channel):
     elif state=='short':
         short_tp_mean=mean
         short_tp_std=std
+    elif state=='neutral':
+        long_tp_mean=mean
+        long_tp_std=std
+        short_tp_mean=mean
+        short_tp_std=std
 
 def tp_indicator(state,previous,current_price):
     global long_tp_mean
     global long_tp_std
     global short_tp_mean
     global short_tp_std
-    # print('Means and stds: ', long_tp_mean,long_tp_std,short_tp_mean,short_tp_std)
     diff=abs(current_price-previous)/current_price
-    print('state: %s, previous %s: current: %s' % (state,previous,current_price))
     normalised=0
-    mean=None
-    std=None
-    #indicator=False
     if state=='long' and current_price>previous:
         normalised=(diff-long_tp_mean)/long_tp_std
-        mean=long_tp_mean
-        std=long_tp_std
-        indicator=True
-        
     elif state=='short' and current_price<previous:
         normalised=(diff-short_tp_mean)/short_tp_std
-        mean=short_tp_mean
-        std=short_tp_std
-        #indicator=True
-    
     return norm.cdf(normalised)>0.85
-    #if not(norm.cdf(normalised)>0.85):
-    #    print('no profit taken with probabilistic model: ')
-    #    print('State: %s, Diff: %s, mean: %s, std: %s, p-value= %s' % (state, diff, mean, std, norm.cdf(normalised)))
-
-    #print('indicator=',indicator)
-    return indicator
 
 def transfer_to_savings(amount):
     Savings._post('subaccounts/transfer', {
@@ -154,9 +116,6 @@ short_tp_std=None
 
 position=ShortTerm.get_position('ETH-PERP',True)
 
-total_runtime=0
-start_time=time.time()
-start_minute=dt.datetime.now().minute
 
 if position==None or position['size']==0:
     string = 'No position, starting state: neutral'
@@ -164,7 +123,7 @@ if position==None or position['size']==0:
     hourly=price.get_price_data('1h',symbol='ETH-PERP')
     minute=price.get_price_data('1m',symbol='ETH-PERP')
     current_price=minute.iloc[-1]['close']
-    trend=chart.identify_trend(hourly,minute,6,16)
+    trend=chart.identify_trend(hourly,minute,2,24)
     trade_capital=get_free_balance()
     position_size=round(trade_capital/current_price,3)
     if trend=='uptrend':
@@ -199,27 +158,22 @@ channel=chart.h_l_channel(minute,60)
 update_model('neutral',minute,channel)
 print(long_tp_mean,long_tp_std, short_tp_mean, short_tp_std)
 print(string)
-total_runtime=total_runtime+(time.time()-start_time)
-print('Total runtime: ', total_runtime)
+
 def run():
     global state
     global trade_capital
     global entry
-    global total_runtime
-    global start_minute
-    start_time=time.time()
+
     output_string=''
     hourly=price.get_price_data('1h',symbol='ETH-PERP')
     minute=price.get_price_data('1m',symbol='ETH-PERP')
-    trend=chart.identify_trend(hourly,minute,6,16)
+    trend=chart.identify_trend(hourly,minute,2,16)
     current_price=minute.iloc[-1]['close'].item()
-    
     #for taking small profits
     channel=chart.h_l_channel(minute,60)
     previous_high=channel.iloc[-1]['high'].item()
     previous_low=channel.iloc[-1]['low'].item()
-    now=dt.datetime.now()
-
+    now=datetime.now()
     if now.hour == 12 and now.minute==5: #at 12:05 everyday it should reset
         update_model(state,minute,channel)
 
@@ -233,30 +187,30 @@ def run():
         #print("Current price: % s, PnL: % s" % (str(current_price),PnL))
         percentage_profit=(PnL/balance)*100
         if percentage_profit>0:
-            tp_amount=round((np.log(percentage_profit+0.7)/20)*position_size,3)
+            tp_amount=round((np.log(percentage_profit+0.5)/20)*position_size,3)
 
     # check if profits need to be taken
     if state=='long':
-        if tp_indicator(state,previous_high, current_price) and percentage_profit>0.3:
+        if tp_indicator(state,previous_high, current_price) and percentage_profit>0.5:
             try:
                 ftx.create_limit_sell_order('ETH-PERP',tp_amount,current_price)
                 print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
             except:
-                print(dt.datetime.now())
+                print(datetime.now())
                 print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
             
             position=ShortTerm.get_position('ETH-PERP',True)
             position_size=float(position['size'])
             
     elif state=='short':
-        if tp_indicator(state, previous_low, current_price) and percentage_profit>0.3:
+        if tp_indicator(state, previous_low, current_price) and percentage_profit>0.5:
             try:
                 ftx.create_limit_buy_order('ETH-PERP',tp_amount,current_price)
                 print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
             except:
-                print(dt.datetime.now())
+                print(datetime.now())
                 print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
             
             position=ShortTerm.get_position('ETH-PERP',True)
@@ -266,54 +220,47 @@ def run():
 
     if trend == 'uptrend' and state != 'long':
 
-        output_string='flip long @ '+ str(current_price)+' :'+dt.datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-        if state=='short':#close position
-            ftx.create_order('ETH-PERP','market','buy',position_size)
-            profit=1-current_price/entry
-            balance=get_free_balance()
-            trade_capital=get_free_balance()
+        output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+        # if state=='short':#close position
+        #     ftx.create_order('ETH-PERP','market','buy',position_size)
+        #     profit=1-current_price/entry
+        balance=get_free_balance()
+        trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
 
-        ftx.create_order('ETH-PERP','market','buy',position_size)
+        # ftx.create_order('ETH-PERP','market','buy',position_size)
         state='long'
         entry=current_price
 
     elif trend == 'downtrend' and state != 'short':
-        output_string='flip short @ '+ str(current_price)+' :'+dt.datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-        if state=='long':#close position
-            ftx.create_order('ETH-PERP','market','sell',position_size)
-            profit=current_price/entry - 1
-            balance=get_free_balance()
-            trade_capital=get_free_balance()
+        output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+        # if state=='long':#close position
+        #     ftx.create_order('ETH-PERP','market','sell',position_size)
+        #     profit=current_price/entry - 1
+        balance=get_free_balance()
+        trade_capital=get_free_balance()
 
-        position_size=round(trade_capital/current_price,3)
+        # position_size=round(trade_capital/current_price,3)
 
-        ftx.create_order('ETH-PERP','market','sell',position_size)
+        # ftx.create_order('ETH-PERP','market','sell',position_size)
         state='short'
         entry=current_price
 
     if output_string!='':
-        print(dt.datetime.now())
+        print(datetime.now())
         print(output_string)
-        append_new_line('ETH_min_log.txt',output_string)
+        # append_new_line('ETH_min_log.txt',output_string)
 
 
     time_till_next_min=60-time.time()%60-1
-    total_runtime=total_runtime+(time.time()-start_time)
-    if now.minute==start_minute:
-        print('Total runtime: ',total_runtime)
     time.sleep(time_till_next_min-1)
-
-    
 
 print('starting main loop')
 #sleep until just before the next min
 sleeping_time=60-time.time()%60-1
 print('sleeping for ', round(sleeping_time))
-scheduler=Scheduler()
-scheduler.minutely(dt.time(second=1), run)
-print(scheduler)
 time.sleep(sleeping_time)
+schedule.every().minute.at(":01").do(run)
 while True:
-    scheduler.exec_jobs()
+    schedule.run_pending()
