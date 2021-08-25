@@ -19,7 +19,10 @@ def get_gradient(ma):
         index=ma['unix'].values,
         data=np.gradient(ma['value'])
     )
-    return gradient
+    gradient_shifted=gradient.shift(periods=1)
+    gradient_shifted=gradient_shifted.dropna()
+    return gradient_shifted
+    
 
 def ma_channel(data, window):
     timestamps=data['unix']

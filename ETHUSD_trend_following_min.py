@@ -1,4 +1,5 @@
 import ccxt
+from scheduler.core import Scheduler
 from scipy.stats import norm
 import price_data as price
 import chart
@@ -8,6 +9,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from ftx_client import FtxClient
+import scheduler
 
 
 ftx = ccxt.ftx({
@@ -210,7 +212,7 @@ def run():
     output_string=''
     hourly=price.get_price_data('1h',symbol='ETH-PERP')
     minute=price.get_price_data('1m',symbol='ETH-PERP')
-    trend=chart.identify_trend(hourly,minute,2,16)
+    trend=chart.identify_trend(hourly,minute,6,16)
     current_price=minute.iloc[-1]['close'].item()
     #for taking small profits
     channel=chart.h_l_channel(minute,60)
@@ -309,6 +311,7 @@ print('starting main loop')
 sleeping_time=60-time.time()%60-1
 print('sleeping for ', round(sleeping_time))
 time.sleep(sleeping_time)
-schedule.every().minute.at(":01").do(run)
+scheduler=Scheduler(tzinfo=datetime.timezone.utc)
+schedule.minutely(datetime.time(second=1), run)
 while True:
-    schedule.run_pending()
+    scheduler.exec_jobs()
