@@ -1,10 +1,11 @@
 from calendar import week
 import ccxt
+from pandas.tseries.offsets import Second
 import price_data as price
 from scipy.stats import norm
 import chart
 import time
-import schedule
+from scheduler import Scheduler
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -157,7 +158,7 @@ def run():
     output_string=''
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
-    trend=chart.identify_trend(daily,hourly,2,24)
+    trend=chart.identify_trend(daily,hourly,3,9)
     current_price=hourly.iloc[-1]['close'].item()
     #for taking small profits
     channel=chart.h_l_channel(hourly,24)
@@ -255,7 +256,10 @@ print('starting main loop')
 #sleep until just before the next hour
 sleeping_time=3600-time.time()%3600 -5
 print('sleeping for ', round(sleeping_time/60))
+schedule=Scheduler()
+schedule.hourly(datetime.time(second=15), run)
+print(schedule)
 time.sleep(sleeping_time)
-schedule.every().hour.at("00:01").do(run)
+
 while True:
-    schedule.run_pending()
+    schedule.exec_jobs()
