@@ -14,15 +14,16 @@ from datetime import datetime
 
 #trend analysis
 
-def get_gradient(ma):
+def get_gradient(ma, shifted=False):
     
     gradient=pd.Series(
         index=ma['unix'].values,
         data=np.gradient(ma['value'])
     )
-    gradient_shifted=gradient.shift(periods=1)
-    gradient_shifted=gradient_shifted.dropna()
-    return gradient_shifted
+    if shifted:
+        gradient_shifted=gradient.shift(periods=1)
+        gradient=gradient_shifted.dropna()
+    return gradient
 
 
 def ma_channel(data, window):
@@ -86,6 +87,7 @@ def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_peri
     gradient = get_gradient(long_ema)
     upper_bound=channel.iloc[-1]['high']
     lower_bound=channel.iloc[-1]['low']
+    
     if minute:
         five_opens=short_term.tail(n=5)['close'].values
     else:

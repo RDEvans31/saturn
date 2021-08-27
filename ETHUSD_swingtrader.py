@@ -90,6 +90,14 @@ def tp_indicator(state,previous,current_price):
         normalised=(diff-short_tp_mean)/short_tp_std
     return norm.cdf(normalised)>0.85
 
+def sl_trigger(state, previous, current_price):
+    if state=='long' and current_price>previous:
+        return True
+    elif state=='short' and current_price<previous:
+        return True
+    else:
+        return False
+
 def transfer_to_savings(amount):
     Savings._post('subaccounts/transfer', {
         "coin":"USD",
@@ -143,7 +151,7 @@ elif position['side']=='sell':
     state='short'
 
 hourly=price.get_price_data('1h',symbol='ETH/USD')
-channel=chart.h_l_channel(hourly,24)
+channel=chart.h_l_channel(hourly,12)
 update_model('neutral',hourly,channel)
 
 print(long_tp_mean,long_tp_std, short_tp_mean, short_tp_std)
@@ -156,31 +164,46 @@ def run():
     global model_updated
 
     output_string=''
+    stop_loss=False
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     trend=chart.identify_trend(daily,hourly,3,9)
     current_price=hourly.iloc[-1]['close'].item()
+    position=main.get_position('ETH-PERP',True)
+    position_size=float(position['size'])
+    active_trade=position_size!=0
+    if active_trade:
+        entry=float(position['recentBreakEvenPrice'])
+        PnL=float(position['recentPnl'])
+        balance=get_total_balance()
+        percentage_profit=(PnL/balance)*100
+        if percentage_profit>0:
+            tp_amount=round(np.log(percentage_profit)/20,2)
+        stop_loss=len(main.get_conditional_orders())>0
+
+        if position['side']=='buy':
+            state='long'
+        else:
+            state='short'
+    else:
+        state='neutral'
+
     #for taking small profits
-    channel=chart.h_l_channel(hourly,24)
-    previous_high=channel.iloc[-1]['high'].item()
-    previous_low=channel.iloc[-1]['low'].item()
+    channel=chart.h_l_channel(hourly,12)
+    previous_high=channel.iloc[-2]['high'].item()
+    previous_low=channel.iloc[-2]['low'].item()
+
     if datetime.now().weekday()%2==0 and not(model_updated):
         update_model(state,hourly,channel)
         model_updated=True
     elif not(datetime.now().weekday()%2==0):
         model_updated=False
 
-    if state!='neutral':
-        position=main.get_position('ETH-PERP',True)
-        entry=float(position['recentBreakEvenPrice'])
-        position_size=float(position['size'])
-        PnL=float(position['recentPnl'])
-        balance=get_total_balance()
-        percentage_profit=(PnL/balance)*100
-        if percentage_profit>0:
-            tp_amount=round(np.log(percentage_profit)/20,2)
-    #check if profits need to be taken
+    #check if profits need to be taken and if stop loss can be set
     if state=='long':
+        if not(stop_loss) and current_price>entry and sl_trigger(state,previous_high,current_price):
+            main.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=np.mean([entry,current_price]))
+
         if tp_indicator(state,previous_high, current_price) and percentage_profit>1:
             try:
                 ftx.create_limit_sell_order('ETH-PERP',tp_amount,current_price)
@@ -193,6 +216,9 @@ def run():
             position=main.get_position('ETH-PERP',True)
             position_size=float(position['size'])
     elif state=='short':
+        if not(stop_loss) and current_price<entry and sl_trigger(state,previous_low,current_price):
+            main.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=np.mean([entry,current_price]))
+        
         if tp_indicator(state, previous_low, current_price) and percentage_profit>1:
             try:
                 ftx.create_limit_buy_order('ETH-PERP',tp_amount,current_price)
@@ -210,13 +236,14 @@ def run():
 
         output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
         if state=='short':#close position
+            main.cancel_orders()
             ftx.create_order('ETH-PERP','market','buy',position_size)
             profit=1-current_price/entry
             balance=get_free_balance()
             if profit>0:
                 amount=0.2*profit*balance
                 transfer_to_savings(amount)
-            trade_capital=get_free_balance()
+        trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
 
@@ -227,13 +254,14 @@ def run():
     elif trend == 'downtrend' and state != 'short':
         output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
         if state=='long':#close position
+            main.cancel_orders()
             ftx.create_order('ETH-PERP','market','sell',position_size)
             profit=current_price/entry - 1
             balance=get_free_balance()
             if profit>0:
                 amount=0.2*profit*balance
                 transfer_to_savings(amount)
-            trade_capital=get_free_balance()
+        trade_capital=get_free_balance()
 
         position_size=round(trade_capital/current_price,3)
 
