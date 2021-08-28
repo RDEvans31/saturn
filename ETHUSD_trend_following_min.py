@@ -140,7 +140,6 @@ def tp_indicator(state,previous,current_price):
     return indicator
 
 def sl_trigger(state, previous, current_price):
-    print('checking sl trigger: ', state,previous,current_price)
     if state=='long' and current_price>previous:
         return True
     elif state=='short' and current_price<previous:
@@ -267,13 +266,20 @@ def run():
     # check if profits need to be taken
     if state=='long':
 
-        if not(stop_loss) and current_price>entry and sl_trigger(state,previous_high,current_price):
-
-            ShortTerm.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=np.mean([entry,current_price]))
-            print('Setting stop loss')
+        # if not(stop_loss) and current_price>entry and sl_trigger(state,previous_high,current_price):
+        #     try:
+        #         ShortTerm.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=np.mean([entry,current_price]))
+        #         print('Setting stop loss')
+        #     except:
+        #         print('Failed to set stop-loss')
 
         if tp_indicator(state,previous_high, current_price) and percentage_profit>0.3:
             try:
+                if stop_loss:
+                    ShortTerm.cancel_orders()
+                    ShortTerm.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=np.mean([current_price,entry]))
+                else:
+                    ShortTerm.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=np.mean([current_price,entry]))
                 ftx.create_limit_sell_order('ETH-PERP',tp_amount,current_price)
                 print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'
@@ -286,12 +292,18 @@ def run():
             
     elif state=='short':
 
-        if not(stop_loss) and current_price<entry and sl_trigger(state,previous_low,current_price):
-            print('Setting stop loss')
-            ShortTerm.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=np.mean([entry,current_price]))
-
+        # if not(stop_loss) and current_price<entry and sl_trigger(state,previous_low,current_price):
+        #     try:
+        #         ShortTerm.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=np.mean([entry,current_price]))
+        #     except:
+        #         print('Failed to set stop-loss')
         if tp_indicator(state, previous_low, current_price) and percentage_profit>0.3:
             try:
+                if stop_loss:
+                    ShortTerm.cancel_orders()
+                    ShortTerm.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=np.mean([current_price,entry]))
+                else:
+                    ShortTerm.place_conditional_order('ETH-PERP','sell',position_size,'stop',trigger_price=np.mean([current_price,entry]))
                 ftx.create_limit_buy_order('ETH-PERP',tp_amount,current_price)
                 print('tp_amount: %s' % (tp_amount))
                 output_string='Profit taken'

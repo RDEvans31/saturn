@@ -28,3 +28,27 @@ flip short @ 3123.3 :08/27/21, 10:01,01
 flip long @ 3129.3 :08/27/21, 11:09,01
 flip long @ 3134.6 :08/27/21, 11:12,02
 flip long @ 3160.4 :08/27/21, 12:48,01
+flip long @ 3147.0 :08/27/21, 13:29,01
+Profit taken
+Profit taken
+Profit taken
+Profit taken
+Profit taken
+Profit taken
+flip short @ 3261.3 :08/28/21, 02:02,02
+flip short @ 3249.7 :08/28/21, 03:46,01
+flip short @ 3247.5 :08/28/21, 03:48,11
+flip short @ 3248.1 :08/28/21, 04:33,01
+flip short @ 3242.7 :08/28/21, 05:06,01
+flip short @ 3242.3 :08/28/21, 05:45,01
+flip short @ 3240.1 :08/28/21, 06:06,01
+flip short @ 3244.5 :08/28/21, 06:47,01
+flip short @ 3244.2 :08/28/21, 08:43,01
+flip short @ 3243.0 :08/28/21, 08:46,02
+flip short @ 3242.7 :08/28/21, 08:49,02
+flip short @ 3241.8 :08/28/21, 08:55,02
+flip short @ 3242.0 :08/28/21, 08:58,01
+flip long @ 3250.7 :08/28/21, 09:07,02
+flip short @ 3237.6 :08/28/21, 11:30,01
+Profit taken
+flip short @ 3227.5 :08/28/21, 12:31,01

@@ -26,18 +26,25 @@ def get_gradient(ma, shifted=False):
     return gradient
 
 
-def ma_channel(data, window):
+def ma_channel(data, window, shift=True):
     timestamps=data['unix']
-    sma=data.rolling(window).mean().shift(periods=1)
+    sma=data.rolling(window).mean()
+    if shift:
+        sma=sma.shift(periods=1)
     sma['unix']=timestamps
     sma.dropna(inplace=True)    
 
     return pd.DataFrame({'unix':sma['unix'],'high':sma['high'], 'low':sma['low']})
 
-def h_l_channel(data,window):
+def h_l_channel(data,window, shifted=False):
     timestamps=data['unix']
-    high=data.rolling(window).max()['open']
-    low=data.rolling(window).min()['open']
+    if shifted:
+        high=data.rolling(window).max()['open']
+        low=data.rolling(window).min()['open']
+    else:
+        high=data.rolling(window).max()['open'].shift(periods=1)
+        low=data.rolling(window).min()['open'].shift(periods=1)
+
     result=pd.DataFrame({'unix':timestamps,'high':high, 'low':low})
     result.dropna(inplace=True)
     return result 
@@ -85,21 +92,20 @@ def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_peri
     long_ema=get_ema(long_term,long_term_ema_period,False)
     channel=ma_channel(short_term,short_term_ma_period)
     gradient = get_gradient(long_ema)
-    upper_bound=channel.iloc[-1]['high']
-    lower_bound=channel.iloc[-1]['low']
-    
+    upper_bound=channel.iloc[-5:]['high']
+    lower_bound=channel.iloc[-5:]['low']
+
     if minute:
-        five_opens=short_term.tail(n=5)['close'].values
+        five_opens=short_term.iloc[-5:]['close']
     else:
-        five_opens=short_term.tail(n=5)['open'].values
+        five_opens=short_term.iloc[-5:]['open']
     uptrend=gradient.iloc[-1].item()>0
-    current=five_opens[-1]
     # print('Current datetime: ', datetime.now())
     # print('Candle time: ', pd.to_datetime(short_term.iloc[-1]['unix'], unit='ms'))
     # print('5 opens: %s, actual current: ' % five_opens, short_term.iloc[-1]['close'].item())
-    if all(opens>upper_bound for opens in five_opens) and uptrend:
+    if (five_opens>upper_bound).all() and uptrend:
         return 'uptrend'
-    elif all(opens<lower_bound for opens in five_opens) and not(uptrend):
+    elif (five_opens<lower_bound).all() and not(uptrend):
         return 'downtrend'
     else:
         return 'neutral'

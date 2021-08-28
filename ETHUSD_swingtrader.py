@@ -167,7 +167,7 @@ def run():
     stop_loss=False
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
-    trend=chart.identify_trend(daily,hourly,3,9)
+    trend=chart.identify_trend(daily,hourly,3,13)
     current_price=hourly.iloc[-1]['close'].item()
     position=main.get_position('ETH-PERP',True)
     position_size=float(position['size'])
