@@ -120,7 +120,7 @@ if position==None or position['size']==0:
     daily=price.get_price_data('1d',symbol='ETH/USD')
     hourly=price.get_price_data('1h',symbol='ETH/USD')
     current_price=hourly.iloc[-1]['close']
-    trend=chart.identify_trend(daily,hourly,2,24)
+    trend=chart.identify_trend(daily,hourly,3,3)
     trade_capital=get_free_balance()
     position_size=round(trade_capital/current_price,3)
     if trend=='uptrend':

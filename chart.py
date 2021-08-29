@@ -14,7 +14,7 @@ from datetime import datetime
 
 #trend analysis
 
-def get_gradient(ma, shifted=False):
+def get_gradient(ma, shifted=True):
     
     gradient=pd.Series(
         index=ma['unix'].values,
@@ -48,6 +48,18 @@ def h_l_channel(data,window, shifted=False):
     result=pd.DataFrame({'unix':timestamps,'high':high, 'low':low})
     result.dropna(inplace=True)
     return result 
+
+def supertrend(data,window, shifted=False):
+    channel=h_l_channel(data, window, shifted)
+    channel=channel.iloc[-window:]
+    high_diff=get_differences(channel['unix'],channel['high'])
+    low_diff=get_differences(channel['unix'],channel['low'])
+    high_diff=high_diff.loc[high_diff>0]
+    low_diff=low_diff.loc[low_diff<0]
+
+    return high_diff, low_diff
+
+
 
 def get_differences(timestamps,data):
     differences=np.diff(data,1)

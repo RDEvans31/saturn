@@ -268,9 +268,9 @@ def update_database(symbol,timeframe):
         return 'no such table'
     #the first of the missing data is the complete candle of the last value (which is incomplete at the time of fetching)
     # we need to delete it
-
+    print('updating ', len(missing_data), ' rows')
     for i in range(0,len(missing_data)):
         candle=missing_data.iloc[i]
         params={"unix": candle['unix'], "close": candle['close'], "high": candle['high'], "low": candle['low'], "open": candle["open"]}
-        print(client.execute(query, variable_values=params))
+        client.execute(query, variable_values=params)
     

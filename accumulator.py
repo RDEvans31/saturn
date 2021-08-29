@@ -21,6 +21,14 @@ ftx = ccxt.ftx({
     'enableRateLimit': True,
 })
 
+cex= ccxt.cex({
+    'apiKey': 'Kn1RVH1X4TbIKX2usChMkQEXf10',
+    'secret': 'bkksHHNIh9LgmFi8vZCInMIEWqc',
+    'enableRateLimit': True,
+    })
+
+def ftx_get_free_balance():
+    return float(next(filter(lambda x:x['coin']=='USD', Savings.get_balances()))['free'])
 
 
 main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B')
@@ -36,15 +44,37 @@ pairs=[
         {
             'asset' : 'XRP',
             'symbol':'XRP/USD',
-            'recurring_amount':, #buy 10 dollars worth everytime this is run
         },
+        {
+            'asset' : 'ETH',
+            'symbol':'ETH/USD',
+        },
+]
 
-for currency in pairs:
+price.update_database('BTC/USD','1d')
+btc_price=price.get_stored_data('BTC/USD', '1d')
+weekly_data=price.get_price_data('1w', data=btc_price)
+fast_ema=chart.get_ema(btc_price,50)
+slow=chart.get_sma(weekly_data,50)
+btc_risk=chart.risk_indicator(fast_ema,slow).iloc[-1]['value'].item()
+print(btc_risk)
+buy_amount=70
+daily_buy_amount=buy_amount/7
+
+if btc_risk>=0.5:
+    pass
+    if btc_risk>=0.9:
+        pass
+        #sell everythin
+    #start selling
     
-    print(symbol,quantity,current_price)
-    
-    # order=submit_order(symbol,price,quantity,5)
-    # print(order)
+else:
+    #buy
+    current_price=btc_price.iloc[-1]['close'].item()
+    dynamic_buy_amount=round(daily_buy_amount*(round(0.5/btc_risk, 1)),2)
+    Savings.place_order('BTC/USD','buy',price=current_price, type='limit', size=round(dynamic_buy_amount/current_price,4))
+    print('Bought btc')
+
 
 
 
