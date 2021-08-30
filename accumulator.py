@@ -71,7 +71,7 @@ if btc_risk>=0.5:
 else:
     #buy
     current_price=btc_price.iloc[-1]['close'].item()
-    dynamic_buy_amount=round(daily_buy_amount*(round(0.5/0.45, 1)-0.5),2)
+    dynamic_buy_amount=round(daily_buy_amount*(round(0.5/btc_risk, 1)-0.5),2)
     amount_to_buy=round(dynamic_buy_amount/current_price,4)
     if amount_to_buy>0.0001:
         Savings.place_order('BTC/USD','buy',price=current_price, type='limit', size=amount_to_buy)
