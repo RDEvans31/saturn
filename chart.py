@@ -100,24 +100,19 @@ def get_dema(data,window,close=False):
     return pd.DataFrame({'unix': timestamps,'value':dema})
 
 #swing trading
-def identify_trend(long_term, short_term,long_term_ema_period,short_term_ma_period, minute=False): #using moving average channel and gradient of large timeframe moving average
-    long_ema=get_ema(long_term,long_term_ema_period,False)
-    channel=ma_channel(short_term,short_term_ma_period)
-    gradient = get_gradient(long_ema)
+def identify_trend(price_data, channel_period, minute=False): #using moving average channel and gradient of large timeframe moving average
+    channel=ma_channel(price_data,channel_period)
     upper_bound=channel.iloc[-5:]['high']
     lower_bound=channel.iloc[-5:]['low']
 
     if minute:
-        five_opens=short_term.iloc[-5:]['close']
+        five_opens=price_data.iloc[-5:]['close']
     else:
-        five_opens=short_term.iloc[-5:]['open']
-    uptrend=gradient.iloc[-1].item()>0
-    # print('Current datetime: ', datetime.now())
-    # print('Candle time: ', pd.to_datetime(short_term.iloc[-1]['unix'], unit='ms'))
-    # print('5 opens: %s, actual current: ' % five_opens, short_term.iloc[-1]['close'].item())
-    if (five_opens>upper_bound).all() and uptrend:
+        five_opens=price_data.iloc[-5:]['open']
+
+    if (five_opens>upper_bound).all():
         return 'uptrend'
-    elif (five_opens<lower_bound).all() and not(uptrend):
+    elif (five_opens<lower_bound).all():
         return 'downtrend'
     else:
         return 'neutral'
@@ -131,7 +126,6 @@ def risk_indicator(fast,slow):
     if len(trimmed_fast)>len(slow): 
         #different values, ie using a daily for fast and weekly for slow
         if (slow['unix'].max()<trimmed_fast['unix'].max()):
-            print('true')
             #add another value to the slow moving avarage to facilitate interpolation
             slow=slow.append({'unix': trimmed_fast['unix'].max(), 'value':slow.iloc[-1]['value']},ignore_index=True)
         f=interp1d(slow['unix'],slow['value'])

@@ -263,7 +263,8 @@ def update_database(symbol,timeframe):
         """
         )
         params={"unix": missing_data.iloc[0]['unix']}
-        print(client.execute(delete,variable_values=params))
+        # print(client.execute(delete,variable_values=params))
+        client.execute(delete,variable_values=params)
     else:
         return 'no such table'
     #the first of the missing data is the complete candle of the last value (which is incomplete at the time of fetching)

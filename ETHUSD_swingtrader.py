@@ -118,9 +118,8 @@ if position==None or position['size']==0:
     string = 'No position, starting state: neutral'
     #precision=int(abs(np.log10(float(next(filter(lambda x:x['symbol']=='ETH/USD',ftx.fetch_markets()))['precision']['amount']))))
     daily=price.get_price_data('1d',symbol='ETH/USD')
-    hourly=price.get_price_data('1h',symbol='ETH/USD')
-    current_price=hourly.iloc[-1]['close']
-    trend=chart.identify_trend(daily,hourly,3,3)
+    current_price=daily.iloc[-1]['close']
+    trend=chart.identify_trend(daily,7)
     trade_capital=get_free_balance()
     position_size=round(trade_capital/current_price,3)
     if trend=='uptrend':
@@ -157,6 +156,7 @@ update_model('neutral',hourly,channel)
 print(long_tp_mean,long_tp_std, short_tp_mean, short_tp_std)
 print(string)
 model_updated=False
+
 def run():
     global state
     global trade_capital
@@ -166,8 +166,7 @@ def run():
     output_string=''
     stop_loss=False
     daily=price.get_price_data('1d',symbol='ETH/USD')
-    hourly=price.get_price_data('1h',symbol='ETH/USD')
-    trend=chart.identify_trend(daily,hourly,3,13)
+    trend=chart.identify_trend(daily,7)
     current_price=hourly.iloc[-1]['close'].item()
     position=main.get_position('ETH-PERP',True)
     position_size=float(position['size'])

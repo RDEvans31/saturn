@@ -58,7 +58,7 @@ fast_ema=chart.get_ema(btc_price,50)
 slow=chart.get_sma(weekly_data,50)
 btc_risk=chart.risk_indicator(fast_ema,slow).iloc[-1]['value'].item()
 print(btc_risk)
-buy_amount=70
+buy_amount=100
 daily_buy_amount=buy_amount/7
 
 if btc_risk>=0.5:
@@ -71,8 +71,10 @@ if btc_risk>=0.5:
 else:
     #buy
     current_price=btc_price.iloc[-1]['close'].item()
-    dynamic_buy_amount=round(daily_buy_amount*(round(0.5/btc_risk, 1)),2)
-    Savings.place_order('BTC/USD','buy',price=current_price, type='limit', size=round(dynamic_buy_amount/current_price,4))
+    dynamic_buy_amount=round(daily_buy_amount*(round(0.5/0.45, 1)-0.5),2)
+    amount_to_buy=round(dynamic_buy_amount/current_price,4)
+    if amount_to_buy>0.0001:
+        Savings.place_order('BTC/USD','buy',price=current_price, type='limit', size=amount_to_buy)
     print('Bought btc')
 
 
