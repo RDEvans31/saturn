@@ -1,5 +1,5 @@
 import ccxt
-import price_data as price
+import price_data
 import chart
 import time
 import schedule
@@ -27,8 +27,13 @@ cex= ccxt.cex({
     'enableRateLimit': True,
     })
 
+ftx.headers = {'FTX-SUBACCOUNT':'Savings'}
+
 def ftx_get_free_balance():
     return float(next(filter(lambda x:x['coin']=='USD', Savings.get_balances()))['free'])
+
+def get_limit(symbol, markets):
+    return float(next(filter(lambda x:x['symbol']==symbol, markets))['limits']['amount']['min'])
 
 
 main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B')
@@ -38,43 +43,47 @@ MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_s
 #1. read from list of dictonaries conatining investments.
 #2. for each investment, purchase amount equivalent to money set aside
 #3. update mean entry, and set stoposs at 5% from entry 
+markets=ftx.fetch_markets()
 
-
-pairs=[
-        {
-            'asset' : 'XRP',
-            'symbol':'XRP/USD',
-        },
-        {
-            'asset' : 'ETH',
-            'symbol':'ETH/USD',
-        },
-]
-
-price.update_database('BTC/USD','1d')
-btc_price=price.get_stored_data('BTC/USD', '1d')
-weekly_data=price.get_price_data('1w', data=btc_price)
-fast_ema=chart.get_ema(btc_price,50)
-slow=chart.get_sma(weekly_data,50)
-btc_risk=chart.risk_indicator(fast_ema,slow).iloc[-1]['value'].item()
-print(btc_risk)
 daily_buy_amount=10
+symbols=['BTC/USD', 'ETH/USD', 'XRP/USD', 'SOL/USD']
+price_data.update_database('BTC/USD','1d')
+price=price_data.get_stored_data('BTC/USD', '1d')
+weekly_data=price_data.get_price_data('1w', data=price)
+fast_ema=chart.get_ema(price,50)
+slow=chart.get_sma(weekly_data,50)
+risk=chart.risk_indicator(fast_ema,slow).iloc[-1]['value'].item()
+print(risk)
+for i in range(len(symbols)):
+    symbol=symbols[i]
+    price=price_data.get_price_data('1m', symbol=symbol)
+    try:
+        balance=float(ftx.fetch_partial_balance(symbol.split('/')[0])['total'])
+    except:
+        print('No balance for : ', symbol)
+    current_price=price.iloc[-1]['close'].item()
 
-if btc_risk>=0.5:
-    pass
-    if btc_risk>=0.9:
-        pass
-        #sell everythin
-    #start selling
-    
-else:
-    #buy
-    current_price=btc_price.iloc[-1]['close'].item()
-    dynamic_buy_amount=round(daily_buy_amount*((0.5/(btc_risk-0.15))-1),2)
-    amount_to_buy=round(dynamic_buy_amount/current_price,4)
-    if amount_to_buy>0.0001:
-        Savings.place_order('BTC/USD','buy',price=current_price, type='limit', size=amount_to_buy)
-        print('Bought btc')
+    if risk>=0.6:
+        #selling
+        if risk>=0.95:
+            Savings.place_order(symbol,'sell',price=current_price, type='limit', size=0.5*balance)
+            print('Sold %s of %s' %(0.5*balance, symbol))
+        else:
+            dynamic_sell_amount=round((-1/(risk-1)) -2, 2)*0.05*balance
+            Savings.place_order(symbol,'sell',price=current_price, type='limit', size=dynamic_sell_amount)
+            print('Sold %s of %s' %(dynamic_sell_amount, symbol))
+        
+    elif risk<0.5:
+        #buy
+
+        dynamic_buy_amount=round(daily_buy_amount*((0.5/(risk-0.15))-1),2)
+        amount_to_buy=round(dynamic_buy_amount/current_price,4)
+        limit=get_limit(symbol, markets)
+        if amount_to_buy>limit:
+            Savings.place_order(symbol,'buy',price=current_price, type='limit', size=amount_to_buy)
+            print('Bought %s of %s' %(amount_to_buy, symbol))
+        else:
+            print('Amount not above limit')
 
 
 

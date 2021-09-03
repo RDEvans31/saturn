@@ -49,7 +49,7 @@ def h_l_channel(data,window, shifted=False):
     result.dropna(inplace=True)
     return result 
 
-def supertrend(data,window, shifted=False):
+def supertrend(data,window, shifted=False): #unfinished
     channel=h_l_channel(data, window, shifted)
     channel=channel.iloc[-window:]
     high_diff=get_differences(channel['unix'],channel['high'])
@@ -67,7 +67,7 @@ def get_differences(timestamps,data):
     differences=pd.Series(index=timestamps.values,data=differences)
     return differences
 
-def get_sma(data,window, close=True):
+def get_sma(data,window, close=False):
      #using daily for now
     timestamps=data['unix'][window-1:]
     if close:
@@ -132,9 +132,9 @@ def risk_indicator(fast,slow):
         slow_interpolated=f(trimmed_fast['unix'])
         slow=pd.DataFrame({'unix':trimmed_fast['unix'],'value':slow_interpolated})
 
-    if ('close' in fast.columns.values.tolist()):
+    if ('open' in fast.columns.values.tolist()):
         #using price
-        risk_metric=np.divide(trimmed_fast['close'],slow['value'])
+        risk_metric=np.divide(trimmed_fast['open'],slow['value'])
     else:
         #using moving average
         risk_metric=np.divide(trimmed_fast['value'],slow['value'])
@@ -143,7 +143,14 @@ def risk_indicator(fast,slow):
     sigma=np.std(risk_metric)
     normalised=(risk_metric-mean)/sigma
     risk=norm.cdf(normalised)
-    return pd.DataFrame({'unix':trimmed_fast['unix'],'value':risk})
+    return pd.DataFrame({'unix':np.array(trimmed_fast['unix'], dtype=np.int64),'value':risk})
+
+def basic_risk(price):
+    mean=np.mean(price['open'])
+    sigma=np.std(price['open'])
+    normalised=(price-mean)/sigma
+    risk=norm.cdf(normalised)
+    return pd.DataFrame({'unix':np.array(price['unix'], dtype=np.int64),'value':risk})
 
 def get_maxima(data, range_param=3):
     n=len(data.index)
