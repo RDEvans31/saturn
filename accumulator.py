@@ -46,7 +46,7 @@ MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_s
 markets=ftx.fetch_markets()
 
 daily_buy_amount=10
-symbols=['BTC/USD', 'ETH/USD', 'XRP/USD', 'SOL/USD']
+symbols=['BTC/USD', 'ETH/USD', 'XRP/USD', 'SOL/USD','MATIC/USD']
 price_data.update_database('BTC/USD','1d')
 price=price_data.get_stored_data('BTC/USD', '1d')
 weekly_data=price_data.get_price_data('1w', data=price)
@@ -83,8 +83,9 @@ for i in range(len(symbols)):
             Savings.place_order(symbol,'buy',price=current_price, type='limit', size=amount_to_buy)
             print('Bought %s of %s' %(amount_to_buy, symbol))
         else:
-            print('Amount not above limit')
-
+            print('Amount not above limit: %s, %s' % (limit,amount_to_buy))
+            Savings.place_order(symbol,'buy',price=current_price, type='limit', size=limit)
+            print('Bought %s of %s' %(limit, symbol))
 
 
 
