@@ -65,13 +65,9 @@ for i in range(len(symbols)):
 
     if risk>=0.6:
         #selling
-        if risk>=0.95:
-            Savings.place_order(symbol,'sell',price=current_price, type='limit', size=0.5*balance)
-            print('Sold %s of %s' %(0.5*balance, symbol))
-        else:
-            dynamic_sell_amount=round((-1/(risk-1)) -2, 2)*0.05*balance
-            Savings.place_order(symbol,'sell',price=current_price, type='limit', size=dynamic_sell_amount)
-            print('Sold %s of %s' %(dynamic_sell_amount, symbol))
+        dynamic_sell_amount=round((-1/(10*(risk-1))), 2)*balance
+        Savings.place_order(symbol,'sell',price=current_price, type='limit', size=dynamic_sell_amount)
+        print('Sold %s of %s' %(dynamic_sell_amount, symbol))
         
     elif risk<0.5:
         #buy
