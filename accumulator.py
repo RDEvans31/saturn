@@ -65,7 +65,7 @@ for i in range(len(symbols)):
 
     if risk>=0.6:
         #selling
-        dynamic_sell_amount=round((-1/(10*(risk-1))), 2)*balance
+        dynamic_sell_amount=round((-1/(50*(risk-1))), 2)*balance
         Savings.place_order(symbol,'sell',price=current_price, type='limit', size=dynamic_sell_amount)
         print('Sold %s of %s' %(dynamic_sell_amount, symbol))
         
