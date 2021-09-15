@@ -122,7 +122,11 @@ def get_stored_data(symbol,timeframe):
     return result
     
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
-def get_price_data(timeframe, exchange=ftx, since=None, symbol=None, data=pd.DataFrame([])): 
+def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=pd.DataFrame([])): 
+
+    exchange=ftx
+    if exchange_str=='binance':
+        exchange=binance
     
     weekly=False
     weekly_candles=[]
@@ -162,12 +166,13 @@ def get_price_data(timeframe, exchange=ftx, since=None, symbol=None, data=pd.Dat
             close = week[6][4]
             weekly_candles.append((timestamp,open,high,low,close))
         week_in_progress=candles[no_full_weeks*7:len(candles)]
-        timestamp = week_in_progress[0][0]
-        open = week_in_progress[0][1]
-        high = max(list(map(lambda x: x[2], week_in_progress)))
-        low = min(list (map(lambda x: x[3], week_in_progress)))
-        close = week_in_progress[-1][4]
-        weekly_candles.append((timestamp,open,high,low,close))
+        if len(week_in_progress)>0:
+            timestamp = week_in_progress[0][0]
+            open = week_in_progress[0][1]
+            high = max(list(map(lambda x: x[2], week_in_progress)))
+            low = min(list (map(lambda x: x[3], week_in_progress)))
+            close = week_in_progress[-1][4]
+            weekly_candles.append((timestamp,open,high,low,close))
 
         candles=weekly_candles
     timestamps=list(map(lambda x: x[0], candles))
@@ -263,8 +268,7 @@ def update_database(symbol,timeframe):
         """
         )
         params={"unix": missing_data.iloc[0]['unix']}
-        # print(client.execute(delete,variable_values=params))
-        client.execute(delete,variable_values=params)
+        print(client.execute(delete,variable_values=params))
     else:
         return 'no such table'
     #the first of the missing data is the complete candle of the last value (which is incomplete at the time of fetching)
@@ -275,3 +279,4 @@ def update_database(symbol,timeframe):
         params={"unix": candle['unix'], "close": candle['close'], "high": candle['high'], "low": candle['low'], "open": candle["open"]}
         client.execute(query, variable_values=params)
     
+update_database('ETH/BTC','1d')

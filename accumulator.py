@@ -54,34 +54,80 @@ fast_ema=chart.get_ema(price,50)
 slow=chart.get_sma(weekly_data,50)
 risk=chart.risk_indicator(fast_ema,slow).iloc[-1]['value'].item()
 print(risk)
-for i in range(len(symbols)):
-    symbol=symbols[i]
-    price=price_data.get_price_data('1m', symbol=symbol)
+if risk>=0.6:
+    price_data.update_database('ETH/USD','1d')
+    price_data.update_database('ETH/BTC','1d')
+    ethbtc=price_data.get_stored_data('ETH/BTC','1d')
+    ethbtc_weekly=price_data.get_price_data('1w', data=ethbtc) 
+    slow_ethbtc=chart.get_sma(ethbtc_weekly,15)
+    risk_ethbtc=chart.risk_indicator(ethbtc,slow_ethbtc)
+    #sell btc
+    price=price_data.get_price_data('1m', symbol='BTC/USD')
     try:
-        balance=float(ftx.fetch_partial_balance(symbol.split('/')[0])['total'])
+        balance=float(ftx.fetch_partial_balance('BTC')['total'])
     except:
-        print('No balance for : ', symbol)
+        print('No balance for BTC ')
     current_price=price.iloc[-1]['close'].item()
+    dynamic_sell_amount=round((-1/(50*(risk-1))), 2)*balance
+    Savings.place_order('BTC/USD','sell',price=current_price, type='limit', size=dynamic_sell_amount)
+    print('Sold %s of %s' %(dynamic_sell_amount, 'BTC/USD'))
+    usd_amount=dynamic_sell_amount*current_price
+    if risk_ethbtc<0.5: #move those profits over to eth
+            usd_balance=ftx.fetch_partial_balance('USD')['total']   
+            eth_price=price_data.get_price_data('1m',symbol='ETH/USD')       
+            #buy
+            current_eth_price=eth_price.iloc[-1]['close'].item()
+            buy_amount=usd_amount/current_eth_price
+            if buy_amount<usd_balance:
+                amount_to_buy=round(buy_amount/current_eth_price,4)
+                limit=get_limit('ETH/USD', markets)
+                if amount_to_buy>limit:
+                    Savings.place_order('ETH/USD','buy',price=current_price, type='limit', size=amount_to_buy)
+                    print('Bought %s of %s' %(amount_to_buy, 'ETH/USD'))
+                else:
+                    print('Amount not above limit: %s, %s' % (limit,amount_to_buy))
+                    Savings.place_order('ETH/USD','buy',price=current_price, type='limit', size=limit)
+                    print('Bought %s of %s' %(limit, 'ETH/USD'))
 
-    if risk>=0.6:
+    else:#start selling alts
         #selling
-        dynamic_sell_amount=round((-1/(50*(risk-1))), 2)*balance
-        Savings.place_order(symbol,'sell',price=current_price, type='limit', size=dynamic_sell_amount)
-        print('Sold %s of %s' %(dynamic_sell_amount, symbol))
-        
-    elif risk<0.5:
-        #buy
+        for i in range(len(symbols)-1):
+            symbol=symbols[i+1]
+            price=price_data.get_price_data('1m', symbol=symbol)
+            try:
+                balance=float(ftx.fetch_partial_balance(symbol.split('/')[0])['total'])
+            except:
+                print('No balance for : ', symbol)
+            current_price=price.iloc[-1]['close'].item()
+            dynamic_sell_amount=round((-1/(50*(risk_ethbtc-1))), 2)*balance
+            Savings.place_order(symbol,'sell',price=current_price, type='limit', size=dynamic_sell_amount)
+            print('Sold %s of %s' %(dynamic_sell_amount, symbol))
 
+
+
+elif risk<0.5:
+    for i in range(len(symbols)):
+        usd_balance=ftx.fetch_partial_balance('USD')['total']
+        symbol=symbols[i]
+        price=price_data.get_price_data('1m', symbol=symbol)
+        try:
+            balance=float(ftx.fetch_partial_balance(symbol.split('/')[0])['total'])
+        except:
+            print('No balance for : ', symbol)
+        current_price=price.iloc[-1]['close'].item()
+            
+            #buy
         dynamic_buy_amount=round(daily_buy_amount*((0.5/(risk-0.15))-1),2)
-        amount_to_buy=round(dynamic_buy_amount/current_price,4)
-        limit=get_limit(symbol, markets)
-        if amount_to_buy>limit:
-            Savings.place_order(symbol,'buy',price=current_price, type='limit', size=amount_to_buy)
-            print('Bought %s of %s' %(amount_to_buy, symbol))
-        else:
-            print('Amount not above limit: %s, %s' % (limit,amount_to_buy))
-            Savings.place_order(symbol,'buy',price=current_price, type='limit', size=limit)
-            print('Bought %s of %s' %(limit, symbol))
+        if dynamic_buy_amount<usd_balance:
+            amount_to_buy=round(dynamic_buy_amount/current_price,4)
+            limit=get_limit(symbol, markets)
+            if amount_to_buy>limit:
+                Savings.place_order(symbol,'buy',price=current_price, type='limit', size=amount_to_buy)
+                print('Bought %s of %s' %(amount_to_buy, symbol))
+            else:
+                print('Amount not above limit: %s, %s' % (limit,amount_to_buy))
+                Savings.place_order(symbol,'buy',price=current_price, type='limit', size=limit)
+                print('Bought %s of %s' %(limit, symbol))
 
 
 
