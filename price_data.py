@@ -200,7 +200,7 @@ def update_database(symbol,timeframe):
     base_currency=split_symbol[0]
     quote_currency=split_symbol[1]
     table=base_currency+quote_currency+'_'+timeframe
-
+    print(table)
     if table=='BTCUSD_1d':
         query = gql(
             """
@@ -278,5 +278,3 @@ def update_database(symbol,timeframe):
         candle=missing_data.iloc[i]
         params={"unix": candle['unix'], "close": candle['close'], "high": candle['high'], "low": candle['low'], "open": candle["open"]}
         client.execute(query, variable_values=params)
-    
-update_database('ETH/BTC','1d')

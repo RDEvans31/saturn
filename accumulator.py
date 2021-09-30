@@ -46,7 +46,7 @@ MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_s
 markets=ftx.fetch_markets()
 
 daily_buy_amount=10
-symbols=['BTC/USD', 'ETH/USD', 'XRP/USD', 'SOL/USD','MATIC/USD']
+symbols=['BTC/USD', 'ETH/USD', 'XRP/USD', 'SOL/USD']
 price_data.update_database('BTC/USD','1d')
 price=price_data.get_stored_data('BTC/USD', '1d')
 weekly_data=price_data.get_price_data('1w', data=price)
@@ -54,13 +54,14 @@ fast_ema=chart.get_ema(price,50)
 slow=chart.get_sma(weekly_data,50)
 risk=chart.risk_indicator(fast_ema,slow).iloc[-1]['value'].item()
 print(risk)
+
 if risk>=0.6:
     price_data.update_database('ETH/USD','1d')
     price_data.update_database('ETH/BTC','1d')
     ethbtc=price_data.get_stored_data('ETH/BTC','1d')
     ethbtc_weekly=price_data.get_price_data('1w', data=ethbtc) 
     slow_ethbtc=chart.get_sma(ethbtc_weekly,15)
-    risk_ethbtc=chart.risk_indicator(ethbtc,slow_ethbtc)
+    risk_ethbtc=chart.risk_indicator(ethbtc,slow_ethbtc).iloc[-1]['value'].item()
     #sell btc
     price=price_data.get_price_data('1m', symbol='BTC/USD')
     try:
