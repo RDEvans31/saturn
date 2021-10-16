@@ -53,15 +53,15 @@ weekly_data=price_data.get_price_data('1w', data=price)
 fast_ema=chart.get_ema(price,50)
 slow=chart.get_sma(weekly_data,50)
 risk=chart.risk_indicator(fast_ema,slow).iloc[-1]['value'].item()
-print(risk)
-
+print('BTC risk level: ', risk)
+price_data.update_database('ETH/USD','1d')
+price_data.update_database('ETH/BTC','1d')
 if risk>=0.6:
-    price_data.update_database('ETH/USD','1d')
-    price_data.update_database('ETH/BTC','1d')
     ethbtc=price_data.get_stored_data('ETH/BTC','1d')
     ethbtc_weekly=price_data.get_price_data('1w', data=ethbtc) 
     slow_ethbtc=chart.get_sma(ethbtc_weekly,15)
     risk_ethbtc=chart.risk_indicator(ethbtc,slow_ethbtc).iloc[-1]['value'].item()
+    print('ETHBTC risk level', risk_ethbtc)
     #sell btc
     price=price_data.get_price_data('1m', symbol='BTC/USD')
     try:

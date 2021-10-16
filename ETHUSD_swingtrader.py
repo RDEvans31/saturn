@@ -3,7 +3,6 @@ import price_data as price
 from scipy.stats import norm
 import chart
 import time
-from scheduler import Scheduler
 import numpy as np
 from datetime import datetime
 from ftx_client import FtxClient
