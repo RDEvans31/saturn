@@ -46,7 +46,7 @@ MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_s
 markets=ftx.fetch_markets()
 
 daily_buy_amount=10
-symbols=['BTC/USD', 'ETH/USD', 'SOL/USD']
+symbols=['BTC/USD', 'ETH/USD', 'SOL/USD', 'MATIC/USD']
 price_data.update_database('BTC/USD','1d')
 price=price_data.get_stored_data('BTC/USD', '1d')
 weekly_data=price_data.get_price_data('1w', data=price)
