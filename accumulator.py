@@ -22,8 +22,9 @@ ftx = ccxt.ftx({
 })
 
 cex= ccxt.cex({
-    'apiKey': 'Kn1RVH1X4TbIKX2usChMkQEXf10',
-    'secret': 'bkksHHNIh9LgmFi8vZCInMIEWqc',
+    'uid' : 'up109520414',
+    'apiKey': '1X2uEcPlvBCe4CcMtzWKguG1SDI',
+    'secret': '8JY4fDg6hRz0DTolZHz77XPdC1o',
     'enableRateLimit': True,
     })
 
@@ -56,7 +57,7 @@ risk=chart.risk_indicator(fast_ema,slow).iloc[-1]['value'].item()
 print('BTC risk level: ', risk)
 price_data.update_database('ETH/USD','1d')
 price_data.update_database('ETH/BTC','1d')
-if risk>=0.6:
+if risk>=0.5:
     ethbtc=price_data.get_stored_data('ETH/BTC','1d')
     ethbtc_weekly=price_data.get_price_data('1w', data=ethbtc) 
     slow_ethbtc=chart.get_sma(ethbtc_weekly,15)
@@ -80,7 +81,7 @@ if risk>=0.6:
             current_eth_price=eth_price.iloc[-1]['close'].item()
             buy_amount=usd_amount/current_eth_price
             if buy_amount<usd_balance:
-                amount_to_buy=round(buy_amount/current_eth_price,4)
+                amount_to_buy=round(buy_amount/current_eth_price,3) #eth has a precision of 0.001
                 limit=get_limit('ETH/USD', markets)
                 if amount_to_buy>limit:
                     Savings.place_order('ETH/USD','buy',price=current_price, type='limit', size=amount_to_buy)
@@ -92,15 +93,16 @@ if risk>=0.6:
 
     else:#start selling alts
         #selling
-        for i in range(len(symbols)-1):
+        for i in range(len(symbols)-1): #sells everything except btc
             symbol=symbols[i+1]
             price=price_data.get_price_data('1m', symbol=symbol)
+            noDecimals=np.absolute(np.log10(next(filter(lambda x:x['symbol']==symbol, ftx.fetch_markets()))['precision']['amount']))
             try:
                 balance=float(ftx.fetch_partial_balance(symbol.split('/')[0])['total'])
             except:
                 print('No balance for : ', symbol)
             current_price=price.iloc[-1]['close'].item()
-            dynamic_sell_amount=round((-1/(50*(risk_ethbtc-1))), 2)*balance
+            dynamic_sell_amount=round(round((-1/(50*(risk_ethbtc-1))), 2)*balance,noDecimals)
             Savings.place_order(symbol,'sell',price=current_price, type='limit', size=dynamic_sell_amount)
             print('Sold %s of %s' %(dynamic_sell_amount, symbol))
 
@@ -111,6 +113,7 @@ elif risk<0.5:
         usd_balance=ftx.fetch_partial_balance('USD')['total']
         symbol=symbols[i]
         price=price_data.get_price_data('1m', symbol=symbol)
+        noDecimals=np.absolute(np.log10(next(filter(lambda x:x['symbol']==symbol, ftx.fetch_markets()))['precision']['amount']))
         try:
             balance=float(ftx.fetch_partial_balance(symbol.split('/')[0])['total'])
         except:
@@ -129,6 +132,8 @@ elif risk<0.5:
                 print('Amount not above limit: %s, %s' % (limit,amount_to_buy))
                 Savings.place_order(symbol,'buy',price=current_price, type='limit', size=limit)
                 print('Bought %s of %s' %(limit, symbol))
+        else:
+            print('No balance')
 
 
 
