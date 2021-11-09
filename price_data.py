@@ -21,10 +21,13 @@ binance = ccxt.binance({
     'enableRateLimit': True,
 })
 
-phemex = ccxt.phemex({
-    'secret' : 'GgWgKUdSCiSirVXS9fmXd4_th-SeXFjMr9g_HmJBgFU2MjQ0ZDMzMy04NmVkLTQ3ZmMtOGNlMC02MDZmZTJjMzEzYWM',
+cex= ccxt.cex({
+    'uid' : 'up109520414',
+    'apiKey': '1X2uEcPlvBCe4CcMtzWKguG1SDI',
+    'secret': '8JY4fDg6hRz0DTolZHz77XPdC1o',
     'enableRateLimit': True,
-})
+    })
+
 ftx = ccxt.ftx({
     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
     'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
@@ -127,6 +130,8 @@ def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=
     exchange=ftx
     if exchange_str=='binance':
         exchange=binance
+    elif exchange_str=='cex':
+        exchange=cex
     
     weekly=False
     weekly_candles=[]
@@ -149,6 +154,7 @@ def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=
             except: 
                 print('error fetching price')
             if not(candles_retrieved):
+                exchange = cex
                 print('retrying')
             
     if weekly:
