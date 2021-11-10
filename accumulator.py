@@ -22,8 +22,10 @@ client = Client(transport=transport, fetch_schema_from_transport=True)
 def get_limit(symbol, markets):
     return float(next(filter(lambda x:x['symbol']==symbol, markets))['limits']['amount']['min'])
 
-def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, markets):
-    usd_balance=exchange.fetch_partial_balance('USD')['total']
+def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols):
+    usd_balance=exchange.fetch_partial_balance('USD')['free']
+    markets=exchange.fetch_markets()
+    print('USD balance: ', usd_balance)
     if risk>=0.5:
         print('ETHBTC risk level', risk_ethbtc)
         #sell btc
@@ -38,7 +40,7 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, markets):
         print('Sold %s of %s' %(dynamic_sell_amount, 'BTC/USD'))
         usd_amount=dynamic_sell_amount*current_price
         if risk_ethbtc<0.5: #move those profits over to eth
-                usd_balance=exchange.fetch_partial_balance('USD')['total']   
+                usd_balance=exchange.fetch_partial_balance('USD')['free']   
                 eth_price=price_data.get_price_data('1m',symbol='ETH/USD')       
                 #buy
                 current_eth_price=eth_price.iloc[-1]['close'].item()
@@ -74,15 +76,15 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, markets):
 
 
 
-    elif risk<0.5 and usd_balance<daily_buy_amount:
+    elif risk<0.5 and usd_balance>daily_buy_amount:
         for i in range(len(symbols)):
-            usd_balance=exchange.fetch_partial_balance('USD')['total']
+            usd_balance=exchange.fetch_partial_balance('USD')['free']
             symbol=symbols[i]
+            print('Symbol:', symbol)
             price=price_data.get_price_data('1m', symbol=symbol, exchange_str=exchange_str)
             noDecimals=np.absolute(np.log10(next(filter(lambda x:x['symbol']==symbol, exchange.fetch_markets()))['precision']['amount']))
             current_price=price.iloc[-1]['close'].item()
-                
-                #buy
+            #buy
             dynamic_buy_amount=round(daily_buy_amount*((0.5/(risk-0.15))-1),2)
             if dynamic_buy_amount<usd_balance:
                 amount_to_buy=round(dynamic_buy_amount/current_price,4)
@@ -98,6 +100,8 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, markets):
                     print('Minimum amount was above usd balance.')
             else:
                 print('No balance')
+    else:
+        print('Not doing anything')
 
 
 #1. read from list of dictonaries conatining investments.
@@ -133,7 +137,7 @@ for key, user in users.items():
         elif name=='cex':
             exchange = ccxt.cex(details['api'])
         symbols=details['symbols']
-        accumulate(risk,risk_ethbtc,name,exchange,symbols,markets)
+        accumulate(risk,risk_ethbtc,name,exchange,symbols)
         
 
 

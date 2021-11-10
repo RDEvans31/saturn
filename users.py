@@ -26,7 +26,7 @@ users = {
         'daily_buy_amount': 10,
         'exchanges': {
             'ftx': {
-                'symbols':['BTC/USD', 'ETH/USD', 'MATIC/USD'],
+                'symbols':['BTC/USD', 'ETH/USD'],
                 'api':{
                     'apiKey': 'urrL3uM7B8yRZwq54WQXUgxX21NyI6AxQ0xv1lC7',
                     'secret': 'vE9rU4lcNRE-CQmA9IAOX4K1r0Jlr5kskUpEc7BK',
