@@ -23,7 +23,7 @@ users = {
         }
     },
     'edward': {
-        'daily_buy_amount': 10,
+        'daily_buy_amount':1,
         'exchanges': {
             'ftx': {
                 'symbols':['BTC/USD', 'ETH/USD'],
