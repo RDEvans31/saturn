@@ -6,6 +6,7 @@ import numpy as np
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 from users import users
+from datetime import datetime
 
 ftx = ccxt.ftx({
     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
@@ -22,8 +23,9 @@ client = Client(transport=transport, fetch_schema_from_transport=True)
 def get_limit(symbol, markets):
     return float(next(filter(lambda x:x['symbol']==symbol, markets))['limits']['amount']['min'])
 
-def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols):
+def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, buy_amount):
     usd_balance=exchange.fetch_partial_balance('USD')['free']
+    gbp_balance=exchange.fetch_partial_balance('GBP')['free']
     markets=exchange.fetch_markets()
     print('USD balance: ', usd_balance)
     if risk>=0.5:
@@ -76,7 +78,7 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols):
 
 
 
-    elif risk<0.5 and usd_balance>daily_buy_amount:
+    elif risk<0.5 and usd_balance>buy_amount:
         for i in range(len(symbols)):
             usd_balance=exchange.fetch_partial_balance('USD')['free']
             symbol=symbols[i]
@@ -85,7 +87,7 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols):
             noDecimals=np.absolute(np.log10(next(filter(lambda x:x['symbol']==symbol, exchange.fetch_markets()))['precision']['amount']))
             current_price=price.iloc[-1]['close'].item()
             #buy
-            dynamic_buy_amount=round(daily_buy_amount*((0.5/(risk-0.15))-1),2)
+            dynamic_buy_amount=round(buy_amount*((0.5/(risk-0.15))-1),2)
             if dynamic_buy_amount<usd_balance:
                 amount_to_buy=round(dynamic_buy_amount/current_price,4)
                 limit=get_limit(symbol, markets)
@@ -106,7 +108,7 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols):
 
 #1. read from list of dictonaries conatining investments.
 #2. for each investment, purchase amount equivalent to money set aside
-#3. update mean entry, and set stoposs at 5% from entry 
+#3. update mean entry, and set stoploss at 5% from entry INCOMPLETE
 
 markets=ftx.fetch_markets()
 
@@ -126,18 +128,30 @@ risk_ethbtc=chart.risk_indicator(ethbtc,slow_ethbtc).iloc[-1]['value'].item()
 
 for key, user in users.items():
     print(key)
-    daily_buy_amount=user['daily_buy_amount']
-    for name, details in user['exchanges'].items():
-        print(name)
-        exchange: ccxt.Exchange
-        if name=='ftx':
-            exchange = ccxt.ftx(details['api'])
-            if 'header' in details:
-                exchange.headers = details['header']
-        elif name=='cex':
-            exchange = ccxt.cex(details['api'])
-        symbols=details['symbols']
-        accumulate(risk,risk_ethbtc,name,exchange,symbols)
-        
+    weekly=user['weekly']
+    number_of_cryptos = 0
+    run = True
+    if weekly:
+        buy_amount=user['daily_buy_amount']*7
+        if datetime.today().weekday() != 0:
+            run=False
+    else:
+        buy_amount=user['daily_buy_amount']
+    if run:
+        for name, details in user['exchanges'].items():
+            print(name)
+            exchange: ccxt.Exchange
+            if name=='ftx':
+                exchange = ccxt.ftx(details['api'])
+                if 'header' in details:
+                    exchange.headers = details['header']
+            elif name=='cex':
+                exchange = ccxt.cex(details['api'])
+            symbols=details['symbols']
+            number_of_cryptos = number_of_cryptos + len(symbols) 
+            accumulate(risk,risk_ethbtc,name,exchange,symbols, buy_amount/number_of_cryptos) # not exactly going to be correct for my account (two exchanges)
+    else:
+        print('Not running today')
+
 
 

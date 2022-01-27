@@ -1,9 +1,10 @@
 users = {
     'rob': {
+        'weekly': True,
         'daily_buy_amount': 10,
         'exchanges': {
             'ftx': {
-                'symbols':['BTC/USD', 'ETH/USD', 'SOL/USD', 'MATIC/USD'],
+                'symbols':['ETH/USD', 'SOL/USD', 'MATIC/USD'],
                 'api':{
                     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
                     'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
@@ -23,6 +24,7 @@ users = {
         }
     },
     'edward': {
+        'weekly': True, 
         'daily_buy_amount':1,
         'exchanges': {
             'ftx': {
