@@ -118,11 +118,10 @@ def get_stored_data(symbol,timeframe):
     candles=result[table]
     df=pd.DataFrame({},columns=['unix','close','high','low','open'])
     for candle in candles:
-        df=df.append(candle,ignore_index=True)
+        df=pd.concat([df,candle], ignore_index=True)
+        # df=df.append(candle,ignore_index=True)
 
     return df.sort_values(by=['unix'], ignore_index=True)
-
-    return result
     
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
 def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=pd.DataFrame([])): 
