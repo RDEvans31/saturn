@@ -118,7 +118,7 @@ def get_stored_data(symbol,timeframe):
     candles=result[table]
     df=pd.DataFrame({},columns=['unix','close','high','low','open'])
     for candle in candles:
-        df=pd.concat([df,candle], ignore_index=True)
+        df=pd.concat([df,pd.DataFrame(candle,index=[0]).astype('float64')], ignore_index=True)
         # df=df.append(candle,ignore_index=True)
 
     return df.sort_values(by=['unix'], ignore_index=True)

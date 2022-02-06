@@ -33,14 +33,19 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, buy_amount):
         #sell btc
         price=price_data.get_price_data('1m', symbol='BTC/USD')
         try:
-            balance=float(exchange.fetch_partial_balance('BTC')['total'])
+            btc_balance=float(exchange.fetch_partial_balance('BTC')['total'])
         except:
             print('No balance for BTC ')
         current_price=price.iloc[-1]['close'].item()
-        dynamic_sell_amount=round((-1/(50*(risk-1))), 2)*balance
-        exchange.create_limit_sell_order('BTC/USD',dynamic_sell_amount,current_price)
-        print('Sold %s of %s' %(dynamic_sell_amount, 'BTC/USD'))
-        usd_amount=dynamic_sell_amount*current_price
+        dynamic_sell_amount=round((-1/(50*(risk-1))), 2)*btc_balance
+        limit=get_limit('BTC/USD', markets)
+        sell_amount=min(btc_balance,dynamic_sell_amount)
+        if sell_amount>=limit:
+            exchange.create_limit_sell_order('BTC/USD',sell_amount,current_price)
+            print('Sold %s of %s' %(dynamic_sell_amount, 'BTC/USD'))
+        else:
+            print('No btc to sell')
+        usd_amount=sell_amount*current_price
         if risk_ethbtc<0.5: #move those profits over to eth
                 usd_balance=exchange.fetch_partial_balance('USD')['free']   
                 eth_price=price_data.get_price_data('1m',symbol='ETH/USD')       
@@ -125,6 +130,7 @@ ethbtc=price_data.get_stored_data('ETH/BTC','1d')
 ethbtc_weekly=price_data.get_price_data('1w', data=ethbtc) 
 slow_ethbtc=chart.get_sma(ethbtc_weekly,15)
 risk_ethbtc=chart.risk_indicator(ethbtc,slow_ethbtc).iloc[-1]['value'].item()
+print('ETH/BTC risk level: ', risk_ethbtc)
 
 for key, user in users.items():
     print(key)

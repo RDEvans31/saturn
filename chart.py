@@ -76,7 +76,6 @@ def get_sma(data,window, close=False):
         sma=data.rolling(window).mean()['open'].dropna()
     return pd.DataFrame({'unix': timestamps,'value':sma})
 
-    # return pd.DataFrame({'unix': list(map(lambda x: x[0], sma)),'value':list(map(lambda x: x[1], sma))})
 
 def get_ema(data,window, close=False):
     timestamps=data['unix'][window:]

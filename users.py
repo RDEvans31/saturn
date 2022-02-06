@@ -1,7 +1,7 @@
 users = {
     'rob': {
         'weekly': True,
-        'daily_buy_amount': 10,
+        'daily_buy_amount': 2,
         'exchanges': {
             'ftx': {
                 'symbols':['ETH/USD', 'SOL/USD', 'MATIC/USD'],
