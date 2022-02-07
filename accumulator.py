@@ -96,16 +96,16 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, buy_amount):
             current_price=price.iloc[-1]['close'].item()
             #buy
             dynamic_buy_amount=round(buy_amount*(11*(risk - 0.8)**2 - 0.7),2)
-            print('Dynamic buy amount: ', dynamic_buy_amount)
+            print('Dynamic buy amount (usd): ', dynamic_buy_amount)
             if dynamic_buy_amount<usd_balance:
                 amount_to_buy=round(dynamic_buy_amount/current_price,4)
                 limit=get_limit(symbol, markets)
                 if amount_to_buy>limit:
-                    #exchange.create_limit_buy_order(symbol,amount_to_buy,current_price)
+                    exchange.create_limit_buy_order(symbol,amount_to_buy,current_price)
                     print('Bought %s of %s' %(amount_to_buy, symbol))
                 elif limit<usd_balance:
                     print('Amount not above limit: %s, %s' % (limit,amount_to_buy))
-                    #exchange.create_limit_buy_order(symbol,limit,current_price)
+                    exchange.create_limit_buy_order(symbol,limit,current_price)
                     print('Bought %s of %s' %(limit, symbol))
                 else:
                     print('Minimum amount was above usd balance.')
@@ -139,7 +139,6 @@ print('ETH/BTC risk level: ', risk_ethbtc)
 for key, user in users.items():
     print(key)
     weekly=user['weekly']
-    number_of_cryptos = 0
     run = True
     if weekly:
         if datetime.today().weekday() != 0:
@@ -149,6 +148,7 @@ for key, user in users.items():
 
     if run:
         for name, details in user['exchanges'].items():
+            number_of_cryptos = 0
             buy_amount=details['daily_buy_amount']
             if weekly:
                 buy_amount=details['daily_buy_amount']*7
@@ -163,10 +163,6 @@ for key, user in users.items():
                 exchange = ccxt.cex(details['api'])
             symbols=details['symbols']
             number_of_cryptos = number_of_cryptos + len(symbols)
-            print(buy_amount/number_of_cryptos)
             accumulate(risk,risk_ethbtc,name,exchange,symbols, buy_amount/number_of_cryptos)
     else:
         print('Not running today')
-
-
-
