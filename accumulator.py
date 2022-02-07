@@ -40,7 +40,7 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, buy_amount):
         except:
             print('No balance for BTC ')
         current_price=price.iloc[-1]['close'].item()
-        dynamic_sell_amount=round((-1/(50*(risk-1))), 2)*btc_balance
+        dynamic_sell_amount=round(2*risk**2-0.9, 2)*btc_balance
         limit=get_limit('BTC/USD', markets)
         sell_amount=min(btc_balance,dynamic_sell_amount)
         if sell_amount>=limit:
@@ -80,7 +80,7 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, buy_amount):
                 except:
                     print('No balance for : ', symbol)
                 current_price=price.iloc[-1]['close'].item()
-                dynamic_sell_amount=round(round((-1/(50*(risk_ethbtc-1))), 2)*balance,noDecimals)
+                dynamic_sell_amount=round(round(2*risk**2-0.9, 2)*balance,noDecimals)
                 exchange.create_limit_sell_order(symbol,dynamic_sell_amount,current_price)
                 print('Sold %s of %s' %(dynamic_sell_amount, symbol))
 
@@ -95,16 +95,17 @@ def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, buy_amount):
             noDecimals=np.absolute(np.log10(next(filter(lambda x:x['symbol']==symbol, exchange.fetch_markets()))['precision']['amount']))
             current_price=price.iloc[-1]['close'].item()
             #buy
-            dynamic_buy_amount=round(buy_amount*((0.5/(risk-0.15))-1),2)
+            dynamic_buy_amount=round(buy_amount*(11*(risk - 0.8)**2 - 0.7),2)
+            print('Dynamic buy amount: ', dynamic_buy_amount)
             if dynamic_buy_amount<usd_balance:
                 amount_to_buy=round(dynamic_buy_amount/current_price,4)
                 limit=get_limit(symbol, markets)
                 if amount_to_buy>limit:
-                    exchange.create_limit_buy_order(symbol,amount_to_buy,current_price)
+                    #exchange.create_limit_buy_order(symbol,amount_to_buy,current_price)
                     print('Bought %s of %s' %(amount_to_buy, symbol))
                 elif limit<usd_balance:
                     print('Amount not above limit: %s, %s' % (limit,amount_to_buy))
-                    exchange.create_limit_buy_order(symbol,limit,current_price)
+                    #exchange.create_limit_buy_order(symbol,limit,current_price)
                     print('Bought %s of %s' %(limit, symbol))
                 else:
                     print('Minimum amount was above usd balance.')
@@ -141,13 +142,17 @@ for key, user in users.items():
     number_of_cryptos = 0
     run = True
     if weekly:
-        buy_amount=user['daily_buy_amount']*7
         if datetime.today().weekday() != 0:
             run=False
     else:
         buy_amount=user['daily_buy_amount']
+
     if run:
         for name, details in user['exchanges'].items():
+            buy_amount=details['daily_buy_amount']
+            if weekly:
+                buy_amount=details['daily_buy_amount']*7
+                
             print(name)
             exchange: ccxt.Exchange
             if name=='ftx':
@@ -157,8 +162,9 @@ for key, user in users.items():
             elif name=='cex':
                 exchange = ccxt.cex(details['api'])
             symbols=details['symbols']
-            number_of_cryptos = number_of_cryptos + len(symbols) 
-            accumulate(risk,risk_ethbtc,name,exchange,symbols, buy_amount/number_of_cryptos) # not exactly going to be correct for my account (two exchanges)
+            number_of_cryptos = number_of_cryptos + len(symbols)
+            print(buy_amount/number_of_cryptos)
+            accumulate(risk,risk_ethbtc,name,exchange,symbols, buy_amount/number_of_cryptos)
     else:
         print('Not running today')
 

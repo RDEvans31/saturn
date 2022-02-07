@@ -1,9 +1,9 @@
 users = {
     'rob': {
         'weekly': True,
-        'daily_buy_amount': 2,
         'exchanges': {
             'ftx': {
+                'daily_buy_amount': 3,  # minimum amount to inveset per day, maximum is determined by risk level and algo. This amount gets split over all symbols for a particular exhange
                 'symbols':['ETH/USD', 'SOL/USD', 'MATIC/USD'],
                 'api':{
                     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
@@ -13,6 +13,7 @@ users = {
                 'header': {'FTX-SUBACCOUNT':'Savings'}
             },
             'cex':{
+                'daily_buy_amount': 1,
                 'symbols':['ADA/USD'],
                 'api':{
                     'uid' : 'up109520414',
@@ -25,9 +26,9 @@ users = {
     },
     'edward': {
         'weekly': True, 
-        'daily_buy_amount':1,
         'exchanges': {
             'ftx': {
+                'daily_buy_amount':1,
                 'symbols':['BTC/USD', 'ETH/USD'],
                 'api':{
                     'apiKey': 'urrL3uM7B8yRZwq54WQXUgxX21NyI6AxQ0xv1lC7',
