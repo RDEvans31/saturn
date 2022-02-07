@@ -25,7 +25,10 @@ def get_limit(symbol, markets):
 
 def accumulate(risk, risk_ethbtc, exchange_str, exchange, symbols, buy_amount):
     usd_balance=exchange.fetch_partial_balance('USD')['free']
-    gbp_balance=exchange.fetch_partial_balance('GBP')['free']
+    try:
+        gbp_balance=exchange.fetch_partial_balance('GBP')['free']
+    except:
+        print('No gbp balance')
     markets=exchange.fetch_markets()
     print('USD balance: ', usd_balance)
     if risk>=0.5:
