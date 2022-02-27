@@ -99,7 +99,7 @@ def get_dema(data,window,close=False):
     return pd.DataFrame({'unix': timestamps,'value':dema})
 
 #swing trading
-def identify_trend(price_data, channel_period, minute=False): #using moving average channel and gradient of large timeframe moving average
+def identify_trend(price_data, channel_period, minute=False): #using moving average channel
     channel=ma_channel(price_data,channel_period)
     upper_bound=channel.iloc[-5:]['high']
     lower_bound=channel.iloc[-5:]['low']

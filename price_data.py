@@ -1,7 +1,8 @@
 from calendar import calendar
+from math import remainder
 import numpy as np
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 import ccxt
 from pandas.core.base import DataError
 from gql import gql, Client
@@ -35,16 +36,23 @@ ftx = ccxt.ftx({
 })
 
 #GETTING INFORMATION
-def find_start(candles):
+def find_start(candles, timeframe='weekly'):
     start_found=False
     timestamps=list(map(lambda x:x[0],candles))
     index=0
     while not(start_found):
-        day=date.fromtimestamp(timestamps[index]/1000).weekday()
-        if day==0:
-            start_found=True
-        else:   
-            index=index+1
+        if timeframe=='weekly':
+            day=date.fromtimestamp(timestamps[index]/1000).weekday()
+            if day==0:
+                start_found=True
+            else:   
+                index=index+1
+        elif timeframe=='4h':
+            remainder=datetime.fromtimestamp(timestamps[index]/1000).hour %  4
+            if remainder == 0:
+                start_found=True
+            else:   
+                index=index+1
     return index
 
 def convert_to_milliseconds(h): #enter time in hours
@@ -126,17 +134,23 @@ def get_stored_data(symbol,timeframe):
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
 def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=pd.DataFrame([])): 
 
+    timeframes = {
+        '1w': '1d', 
+        '4h': '1h',
+        '1d': '1d',
+        '1h': '1h',
+        '1m': '1m',
+        }
+
+    timeframe_encoded = timeframes[timeframe]
+
     exchange=ftx
     if exchange_str=='binance':
         exchange=binance
     elif exchange_str=='cex':
         exchange=cex
-    
-    weekly=False
-    weekly_candles=[]
-    if timeframe=='1w':
-        timeframe='1d'
-        weekly=True
+
+    period_candles=[]
 
     if not(data.empty):
         candles=[]
@@ -148,15 +162,41 @@ def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=
         candles_retrieved=False
         while not(candles_retrieved):
             try:
-                candles=exchange.fetchOHLCV(symbol,timeframe,since=since)
+                candles=exchange.fetchOHLCV(symbol,timeframe_encoded,since=since)
                 candles_retrieved=True
             except: 
                 print('error fetching price')
             if not(candles_retrieved):
                 exchange = cex
                 print('retrying')
+
+    if timeframe == '4h':
+        print('runnning')
+        start=find_start(candles, '4h')
+        candles=candles[start:]
+        no_periods=len(candles)//4
+        for i in range(0,no_periods):
+            start=i*4
+            end=start+4 #this is the index after the last day of the week
+            period=candles[start:end]
+            timestamp = period[0][0]
+            open = period[0][1]
+            high = max(list(map(lambda x: x[2], period)))
+            low = min(list (map(lambda x: x[3], period)))
+            close = period[-1][4]
+            period_candles.append((timestamp,open,high,low,close))
+        candle_in_progress=candles[no_periods*4:len(candles)]
+        if len(candle_in_progress)>0:
+            timestamp = candle_in_progress [0][0]
+            open = candle_in_progress [0][1]
+            high = max(list(map(lambda x: x[2], candle_in_progress )))
+            low = min(list (map(lambda x: x[3], candle_in_progress )))
+            close = candle_in_progress [-1][4]
+            period_candles.append((timestamp,open,high,low,close))
+        
+        candles = period_candles
             
-    if weekly:
+    elif timeframe == '1w':
         start=find_start(candles)
         candles=candles[start:]
         no_full_weeks=len(candles)//7
@@ -164,12 +204,12 @@ def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=
             start=i*7
             end=start+7 #this is the index after the last day of the week
             week=candles[start:end]
-            timestamp = week[6][0]
+            timestamp = week[0][0]
             open = week[0][1]
             high = max(list(map(lambda x: x[2], week)))
             low = min(list (map(lambda x: x[3], week)))
-            close = week[6][4]
-            weekly_candles.append((timestamp,open,high,low,close))
+            close = week[-1][4]
+            period_candles.append((timestamp,open,high,low,close))
         week_in_progress=candles[no_full_weeks*7:len(candles)]
         if len(week_in_progress)>0:
             timestamp = week_in_progress[0][0]
@@ -177,16 +217,16 @@ def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=
             high = max(list(map(lambda x: x[2], week_in_progress)))
             low = min(list (map(lambda x: x[3], week_in_progress)))
             close = week_in_progress[-1][4]
-            weekly_candles.append((timestamp,open,high,low,close))
+            period_candles.append((timestamp,open,high,low,close))
 
-        candles=weekly_candles
+        candles=period_candles
     timestamps=list(map(lambda x: x[0], candles))
     open_price=np.array(list(map(lambda x: x[1], candles)),dtype=float)
     highest=np.array(list(map(lambda x: x[2], candles)),dtype=float)
     lowest=np.array(list(map(lambda x: x[3], candles)),dtype=float)
     closes=np.array(list(map(lambda x: x[4], candles)),dtype=float)
 
-    df=pd.DataFrame({'unix':timestamps,'open':open_price,'high':highest,'low':lowest,'close':closes}).sort_values(by=['unix'], ignore_index=True)
+    df=pd.DataFrame({'unix':timestamps,'close':closes,'high':highest,'low':lowest,'open':open_price}).sort_values(by=['unix'], ignore_index=True)
 
     return df
 
@@ -243,7 +283,7 @@ def update_database(symbol,timeframe):
         delete= gql(
             """
               mutation DeleteCandle ( $unix: numeric ){
-                delete_ETHUSD_1d(where: { unix: {_eq: $unix} } ){
+                delete_ETHUSD_1d(where: { unix: {_eq: $unix}}){
                     affected_rows
                 }
             }
@@ -283,3 +323,6 @@ def update_database(symbol,timeframe):
         candle=missing_data.iloc[i]
         params={"unix": candle['unix'], "close": candle['close'], "high": candle['high'], "low": candle['low'], "open": candle["open"]}
         client.execute(query, variable_values=params)
+
+
+
