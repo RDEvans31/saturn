@@ -324,5 +324,34 @@ def update_database(symbol,timeframe):
         params={"unix": candle['unix'], "close": candle['close'], "high": candle['high'], "low": candle['low'], "open": candle["open"]}
         client.execute(query, variable_values=params)
 
+def heikin_ashi(previous_open, previous_close, candle):
+    # print(candle)
+    price_values = candle[["open","high","low","close"]]
+    close = np.mean(price_values)
+    open_price = 0.5*(previous_open+previous_close)
+    high=max([max(price_values), open_price,close])
+    low = min([min(price_values), open_price,close])
+    
+    return candle["unix"], open_price, high, close, low
 
+def convert_data_to_heikin_ashi(data):
+    timestamps, opens, closes, highs, lows  = [0], [0],[0],[0],[0]
+    #initialise values
+    for i in range(1,len(data)):
+        timestamp, open_price, high, close, low = heikin_ashi(opens[-1], closes[-1],data.iloc[i])
+        timestamps.append(timestamp)
+        opens.append(open_price)
+        highs.append(high)
+        lows.append(low)
+        closes.append(close)
+
+    candles = pd.DataFrame({'unix':timestamps,'ha_Open':opens,'ha_High':highs,'ha_Low':lows,'ha_Close':closes}).sort_values(by=['unix'], ignore_index=True)
+    timestamp_df=candles['unix'].shift(periods=-1)
+    candles["unix"] = timestamp_df
+    candles["Date"] = pd.to_datetime(candles["unix"], unit="ms")
+    candles["Green"] = candles["ha_Close"]>candles["ha_Open"]
+    candles.drop([0,1,len(candles)-1], inplace=True)
+    candles.set_index("Date", inplace=True)
+    candles.drop("unix", axis=1, inplace=True)
+    return candles
 
