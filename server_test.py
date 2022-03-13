@@ -1,17 +1,22 @@
 import price_data as price
+import asyncio
 import ccxt
-from ftx_client import FtxClient
 
-ftx = ccxt.ftx({
+ftx_ccxt = ccxt.ftx({
     'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
     'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
-    'enableRateLimit': True,
+    'enableRateLimit': True
 })
 
-main=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B')
-Savings=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='Savings')
-MeanReversion=FtxClient(api_key='mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',api_secret='oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',subaccount_name='MeanReversion')
+def fetch_position(exchange: ccxt.Exchange):
+    request = {
+        'showAvgPrice': True,
+    }
+    response = exchange.privateGetPositions(ftx_ccxt.extend(request))
+    result = ftx_ccxt.safe_value(response, 'result', [])
+    print(next(filter(lambda x: x['future']=='ETH-PERP',result)))
 
-def get_balance():
-    return float(next(filter(lambda x:x['coin']=='USD', main.get_balances()))['free'])
-print(main.get_positions())
+    # print(ftx_ccxt.parse_position(result[i]))
+    # ftx_ccxt.parse_position(result[i])
+
+fetch_position(ftx_ccxt)
