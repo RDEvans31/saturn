@@ -282,7 +282,7 @@ elif not(uptrend) and state != 'short':
             amount=0.2*profit*balance
             # transfer_to_savings(amount)
     trade_capital=get_free_balance_ha()
-    position_size=round(0.99(trade_capital/current_price),3)
+    position_size=round(0.99*(trade_capital/current_price),3)
     ftx_ha_trader.create_order('ETH-PERP','market','sell',position_size)
     state='short'
     entry=current_price
