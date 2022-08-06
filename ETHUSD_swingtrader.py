@@ -155,13 +155,13 @@ previous_low=channel.iloc[-2]['low'].item()
 #         except:
 #             print(datetime.now())
 #             print('Failed to tp, tp_amount: %s, position_size: %s' % (tp_amount,position_size))
-        
+
 #         position=main.get_position('ETH-PERP',True)
 #         position_size=float(position['size'])
 # elif state=='short':
 #     if not(stop_loss) and current_price<entry and sl_trigger(state,previous_low,current_price):
 #         main.place_conditional_order('ETH-PERP','buy',position_size,'stop',trigger_price=np.mean([entry,current_price]))
-    
+
 #     if tp_indicator(state, previous_low, current_price) and percentage_profit>1:
 #         try:
 #             ftx.create_limit_buy_order('ETH-PERP',tp_amount,current_price)
@@ -266,9 +266,7 @@ if uptrend and state != 'long':
         balance=get_free_balance_ha()
 
     trade_capital=get_free_balance_ha()
-
-    position_size=round(trade_capital/current_price,3)
-
+    position_size=round(0.99*(trade_capital/current_price),3)
     ftx_ha_trader.create_order('ETH-PERP','market','buy',position_size)
     state='long'
     entry=current_price
@@ -284,9 +282,7 @@ elif not(uptrend) and state != 'short':
             amount=0.2*profit*balance
             # transfer_to_savings(amount)
     trade_capital=get_free_balance_ha()
-
-    position_size=round(trade_capital/current_price,3)
-
+    position_size=round(0.99*(trade_capital/current_price),3)
     ftx_ha_trader.create_order('ETH-PERP','market','sell',position_size)
     state='short'
     entry=current_price
