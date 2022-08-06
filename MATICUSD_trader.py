@@ -39,7 +39,7 @@ ftx_ha_trader = ccxt.ftx({
     'enableRateLimit': True,
 })
 
-ftx_ha_trader.headers = { 'FTX-SUBACCOUNT':'MATIC_TRADING' }
+ftx_ha_trader.headers = { 'FTX-SUBACCOUNT':'MATIC_Trader' }
 
 def get_free_balance_ha():
     return float(ftx_ha_trader.fetch_balance()['USD']['free'])
@@ -63,6 +63,7 @@ if active_trade:
     percentage_profit=(PnL/balance)*100
     if percentage_profit>0:
         tp_amount=round(np.log(percentage_profit)/20,2)
+    # stop_loss=len(main.get_conditional_orders())>0
 
     if position['side']=='buy':
         state='long'
@@ -76,34 +77,29 @@ if uptrend and state != 'long':
     output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
     if state=='short':#close position
         ftx_ha_trader.cancel_all_orders()
-        ftx_ha_trader.create_order('ETH-PERP','market','buy',position_size)
+        ftx_ha_trader.create_order('MATIC-PERP','market','buy',position_size)
         profit=1-current_price/entry
         balance=get_free_balance_ha()
 
     trade_capital=get_free_balance_ha()
-
-    position_size=round(trade_capital/current_price,3)
-
-    ftx_ha_trader.create_order('ETH-PERP','market','buy',position_size)
+    position_size=round(0.99*(trade_capital/current_price),3)
+    ftx_ha_trader.create_order('MATIC-PERP','market','buy',position_size)
     state='long'
     entry=current_price
 
 elif not(uptrend) and state != 'short':
-
     output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
     if state=='long':#close position
         ftx_ha_trader.cancel_all_orders()
-        ftx_ha_trader.create_order('ETH-PERP','market','sell',position_size)
+        ftx_ha_trader.create_order('MATIC-PERP','market','sell',position_size)
         profit=current_price/entry - 1
         balance=get_free_balance_ha()
         if profit>0:
             amount=0.2*profit*balance
             # transfer_to_savings(amount)
     trade_capital=get_free_balance_ha()
-
-    position_size=round(trade_capital/current_price,3)
-
-    ftx_ha_trader.create_order('ETH-PERP','market','sell',position_size)
+    position_size=round(0.99*(trade_capital/current_price),3)
+    ftx_ha_trader.create_order('MATIC-PERP','market','sell',position_size)
     state='short'
     entry=current_price
 
