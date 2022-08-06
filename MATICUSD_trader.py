@@ -36,7 +36,7 @@ ftx_ha_trader = ccxt.ftx({
     'enableRateLimit': True,
 })
 
-ftx_ha_trader.headers = { 'FTX-SUBACCOUNT':'MATIC_TRADER' }
+ftx_ha_trader.headers = { 'FTX-SUBACCOUNT':'MATIC_TRADING' }
 
 def get_free_balance_ha():
     return float(ftx_ha_trader.fetch_balance()['USD']['free'])
