@@ -1,8 +1,5 @@
 import ccxt
 import price_data as price
-from scipy.stats import norm
-import chart
-import time
 import numpy as np
 from datetime import datetime
 
