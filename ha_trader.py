@@ -35,7 +35,7 @@ def append_new_line(file_name, text_to_append):
 
 output_string=''
 stop_loss=False
-weekly=price.get_price_data('1w',symbol='ETH/USD')
+weekly=price.get_price_data('1w',symbol='ETH/USD', offset=3)
 current_price=weekly.iloc[-1]['close'].item()
 uptrend=price.convert_data_to_heikin_ashi(weekly).iloc[-1]['Green']
 position=next(filter(lambda x: x['future']=='ETH-PERP',ftx_ha_trader.fetch_positions()))

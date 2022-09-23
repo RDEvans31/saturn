@@ -36,14 +36,14 @@ ftx = ccxt.ftx({
 })
 
 #GETTING INFORMATION
-def find_start(candles, timeframe='weekly'):
+def find_start(candles, timeframe='weekly', offset=0):
     start_found=False
     timestamps=list(map(lambda x:x[0],candles))
     index=0
     while not(start_found):
         if timeframe=='weekly':
             day=date.fromtimestamp(timestamps[index]/1000).weekday()
-            if day==0:
+            if day== (0 if (offset==0) else (7-offset)):
                 start_found=True
             else:   
                 index=index+1
@@ -132,7 +132,7 @@ def get_stored_data(symbol,timeframe):
     return df.sort_values(by=['unix'], ignore_index=True)
     
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
-def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=pd.DataFrame([])): 
+def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=pd.DataFrame([]), offset=0): 
 
     timeframes = {
         '1w': '1d', 
@@ -197,7 +197,7 @@ def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=
         candles = period_candles
             
     elif timeframe == '1w':
-        start=find_start(candles)
+        start=find_start(candles, offset=offset)
         candles=candles[start:]
         no_full_weeks=len(candles)//7
         for i in range(0,no_full_weeks):
