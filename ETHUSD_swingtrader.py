@@ -1,23 +1,24 @@
-import ccxt
-import price_data as price
-from scipy.stats import norm
-import chart
+import pandas as pd
 import numpy as np
+import price_data as price
+import ccxt
+import chart
 from datetime import datetime
-symbol_binance='ETH/USDT'
-symbol_kucoin_futures='ETH/USDT:USDT'
 
-kucoin = ccxt.kucoinfutures({    
+kucoin_main = ccxt.kucoinfutures({    
     "apiKey": '6372b12d3671050001314dc3',
     "secret": 'a69adc2e-457d-48a8-907b-d69f8afbbf08',
     'password': 'SaturnApi',})
 
-def get_free_balance():
-    return float(kucoin.fetch_balance()['USDT']['free'])
+symbol_binance='ETH/USDT'
+symbol_kucoin_futures='ETH/USDT:USDT'
 
-def get_total_balance():
-  return float(kucoin.fetch_balance()['USDT']['total'])
-
+class Position:
+    def __init__(self, side, size, pnl, entry ):
+        self.side = side
+        self.size = size
+        self.pnl = pnl
+        self.entry = entry
 
 def append_new_line(file_name, text_to_append):
     """Append given text as a new line at the end of file"""
@@ -32,61 +33,83 @@ def append_new_line(file_name, text_to_append):
         # Append text at the end of file
         file_object.write(text_to_append)
 
+def get_free_balance():
+    return float(kucoin_main.fetch_balance()['USDT']['free'])
 
-output_string=''
-daily=price.get_price_data('1d',exchange_str='binance',symbol='ETH/USDT')
-current_price=daily.iloc[-1]['close'].item()
-trend=chart.identify_trend(daily,7)
-position=next(filter(lambda x: x['symbol']=='ETH/USDT:USDT', kucoin.fetch_positions()))
-position_size=float(position['size'])
-active_trade=position_size!=0
+def get_total_balance():
+  return float(kucoin_main.fetch_balance()['USDT']['total'])
 
-if active_trade:
-
-    if position['side']=='short':
-        state='short'
+def buy(amount: float, price=None):
+    if price==None:
+        return kucoin_main.create_order(symbol_kucoin_futures,'market','buy',amount=amount, params={'leverage':2})
     else:
-        state='long'
+        return kucoin_main.create_order(symbol_kucoin_futures,'limit','buy',amount=amount, price=price, params={'leverage':2})
+
+def sell(amount: float, price=None):
+    if price==None:
+        return kucoin_main.create_order(symbol_kucoin_futures,'market','sell',amount=amount, params={'leverage':2})
+    else:
+        return kucoin_main.create_order(symbol_kucoin_futures,'limit','sell',amount=amount, price=price, params={'leverage':2})
+
+def get_position():
+    positions=kucoin_main.fetch_positions()
+    if len(positions) == 0:
+        return None
+    else:
+        position=next(filter(lambda x: x['symbol']=='ETH/USDT:USDT', kucoin_main.fetch_positions()))
+        # amount is the number of contracts
+        size = position['contracts']
+        side = position['side']
+        pnl = position['info']['unrealisedPnl'] + position['info']['realisedPnl']
+        entry = position['entryPrice']
+        return Position(side,float(size),float(pnl),float(entry))
+
+position = get_position()
+
+daily=price.get_price_data('1d',exchange_str='binance',symbol=symbol_binance)
+current_price=daily.iloc[-1]['close'].item()
+contract_size = kucoin_main.load_markets()[symbol_kucoin_futures]['contractSize']
+trend=chart.identify_trend(daily,7)
+
+active_trade= position!=None
+output_string = ''
+if active_trade:
+    state=position.side
 else:
     state='neutral'
 
 
-# need to try placing and cancelling orders on jupyter notebook (closing and opening positions)
 if trend == 'uptrend' and state != 'long':
 
     output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
     if state=='short':#close position
-        kucoin.cancel_all_orders()
-        kucoin.create_order('ETH-PERP','market','buy',position_size)
-        profit=1-current_price/entry
-        balance=get_free_balance()
+        kucoin_main.cancel_all_orders()
+        buy(position.size)
 
     trade_capital=get_free_balance()
 
-    position_size=round(trade_capital/current_price,3)
+    position_size=round((trade_capital/current_price)/contract_size) 
 
-    # kucoin.create_order('ETH-PERP','market','buy',position_size)
+    buy(position_size)
     state='long'
     entry=current_price
 
 elif trend == 'downtrend' and state != 'short':
     output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
     if state=='long':#close position
-        kucoin.cancel_all_orders()
-        kucoin.create_order('ETH-PERP','market','sell',position_size)
-        profit=current_price/entry - 1
-        balance=get_free_balance()
+        kucoin_main.cancel_all_orders()
+        sell(position.size)
+
     trade_capital=get_free_balance()
 
-    position_size=round(trade_capital/current_price,3)
+    position_size=round((trade_capital/current_price)/contract_size)
 
-    # kucoin.create_order('ETH-PERP','market','sell',position_size)
+    # sell(position_size)
     state='short'
     entry=current_price
-
 if output_string!='':
     print(output_string)
     append_new_line('ETH_swingtrader_log.txt',output_string)
-if state != 'neutral':
+if active_trade:
     print(datetime.now())
-    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(entry),str(current_price), PnL))
+    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(entry),str(current_price), position.pnl))
