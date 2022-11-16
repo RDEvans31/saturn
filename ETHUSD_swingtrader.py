@@ -112,4 +112,4 @@ if output_string!='':
     append_new_line('ETH_swingtrader_log.txt',output_string)
 if active_trade:
     print(datetime.now())
-    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(entry),str(current_price), position.pnl))
+    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(position.entry),str(current_price), position.pnl))
