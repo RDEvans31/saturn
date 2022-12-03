@@ -66,7 +66,7 @@ def get_position():
 
 position = get_position()
 
-daily=price.get_price_data('1d',exchange_str='binance',symbol=symbol_binance)
+daily=price.get_price_data('1d',exchange_str='kucoin',symbol=symbol_kucoin_futures)
 current_price=daily.iloc[-1]['close'].item()
 contract_size = kucoin_main.load_markets()[symbol_kucoin_futures]['contractSize']
 trend=chart.identify_trend(daily,7)
