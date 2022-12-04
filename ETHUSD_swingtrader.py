@@ -5,7 +5,7 @@ import ccxt
 import chart
 from datetime import datetime
 
-kucoin_main = ccxt.kucoinfutures({    
+kucoin_main = ccxt.kucoinfutures({
     "apiKey": '6372b12d3671050001314dc3',
     "secret": 'a69adc2e-457d-48a8-907b-d69f8afbbf08',
     'password': 'SaturnApi',})
@@ -88,7 +88,7 @@ if trend == 'uptrend' and state != 'long':
 
     trade_capital=get_free_balance()
 
-    position_size=round((trade_capital/current_price)/contract_size) 
+    position_size=round((trade_capital/current_price)/contract_size)
 
     buy(position_size)
     state='long'
