@@ -21,6 +21,8 @@ binance = ccxt.binance({
     'enableRateLimit': True,
 })
 
+kraken = ccxt.kraken()
+
 cex= ccxt.cex({
     'uid' : 'up109520414',
     'apiKey': '1X2uEcPlvBCe4CcMtzWKguG1SDI',
@@ -142,7 +144,7 @@ def get_price_data(timeframe, exchange_str='kucoin', since=None, symbol=None, da
 
     timeframe_encoded = timeframes[timeframe]
 
-    exchange=kucoin
+    exchange=kraken
     if exchange_str=='binance':
         exchange=binance
     elif exchange_str=='cex':
@@ -352,5 +354,3 @@ def convert_data_to_heikin_ashi(data):
     candles.set_index("Date", inplace=True)
     candles.drop("unix", axis=1, inplace=True)
     return candles
-
-
