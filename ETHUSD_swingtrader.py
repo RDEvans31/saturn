@@ -1,29 +1,24 @@
-import ccxt
-import price_data as price
-from scipy.stats import norm
-import chart
+import pandas as pd
 import numpy as np
+import price_data as price
+import ccxt
+import chart
 from datetime import datetime
 
-ftx = ccxt.ftx({
-    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
-    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
-    'enableRateLimit': True,
-})
+kucoin_main = ccxt.kucoinfutures({
+    "apiKey": '6372b12d3671050001314dc3',
+    "secret": 'a69adc2e-457d-48a8-907b-d69f8afbbf08',
+    'password': 'SaturnApi',})
 
-def get_free_balance():
-    return float(ftx.fetch_balance()['USD']['free'])
+symbol_binance='ETH/USDT'
+symbol_kucoin_futures='ETH/USDT:USDT'
 
-def get_total_balance():
-  return float(ftx.fetch_balance()['USD']['total'])
-
-def fetch_position(exchange: ccxt.Exchange):
-    request = {
-        'showAvgPrice': True,
-    }
-    response = exchange.privateGetPositions(exchange.extend(request))
-    result = exchange.safe_value(response, 'result', [])
-    return next(filter(lambda x: x['future']=='ETH-PERP',result))
+class Position:
+    def __init__(self, side, size, pnl, entry ):
+        self.side = side
+        self.size = size
+        self.pnl = pnl
+        self.entry = entry
 
 def append_new_line(file_name, text_to_append):
     """Append given text as a new line at the end of file"""
@@ -38,152 +33,83 @@ def append_new_line(file_name, text_to_append):
         # Append text at the end of file
         file_object.write(text_to_append)
 
+def get_free_balance():
+    return float(kucoin_main.fetch_balance()['USDT']['free'])
 
-long_tp_mean=None
-long_tp_std=None
-short_tp_mean=None
-short_tp_std=None
+def get_total_balance():
+  return float(kucoin_main.fetch_balance()['USDT']['total'])
 
+def buy(amount: float, price=None):
+    if price==None:
+        return kucoin_main.create_order(symbol_kucoin_futures,'market','buy',amount=amount, params={'leverage':2})
+    else:
+        return kucoin_main.create_order(symbol_kucoin_futures,'limit','buy',amount=amount, price=price, params={'leverage':2})
 
-output_string=''
-stop_loss=False
+def sell(amount: float, price=None):
+    if price==None:
+        return kucoin_main.create_order(symbol_kucoin_futures,'market','sell',amount=amount, params={'leverage':2})
+    else:
+        return kucoin_main.create_order(symbol_kucoin_futures,'limit','sell',amount=amount, price=price, params={'leverage':2})
+
+def get_position():
+    positions=kucoin_main.fetch_positions()
+    if len(positions) == 0:
+        return None
+    else:
+        position=next(filter(lambda x: x['symbol']=='ETH/USDT:USDT', kucoin_main.fetch_positions()))
+        # amount is the number of contracts
+        size = position['contracts']
+        side = position['side']
+        pnl = position['info']['unrealisedPnl'] + position['info']['realisedPnl']
+        entry = position['entryPrice']
+        return Position(side,float(size),float(pnl),float(entry))
+
+position = get_position()
+
 daily=price.get_price_data('1d',symbol='ETH/USD')
 current_price=daily.iloc[-1]['close'].item()
+contract_size = kucoin_main.load_markets()[symbol_kucoin_futures]['contractSize']
 trend=chart.identify_trend(daily,7)
-position=fetch_position(ftx)
-position_size=float(position['size'])
-active_trade=position_size!=0
 
+active_trade= position!=None
+output_string = ''
 if active_trade:
-    entry=float(position['recentBreakEvenPrice'])
-    PnL=float(position['recentPnl'])
-    balance=get_total_balance()
-    percentage_profit=(PnL/balance)*100
-    if percentage_profit>0:
-        tp_amount=round(np.log(percentage_profit)/20,2)
-    # stop_loss=len(main.get_conditional_orders())>0
-
-    if position['side']=='buy':
-        state='long'
-    else:
-        state='short'
+    state=position.side
 else:
     state='neutral'
-
-#for taking small profits
 
 
 if trend == 'uptrend' and state != 'long':
 
     output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
     if state=='short':#close position
-        ftx.cancel_all_orders()
-        ftx.create_order('ETH-PERP','market','buy',position_size)
-        profit=1-current_price/entry
-        balance=get_free_balance()
-        if profit>0:
-            amount=0.2*profit*balance
+        kucoin_main.cancel_all_orders()
+        buy(position.size)
+
     trade_capital=get_free_balance()
 
-    position_size=round(trade_capital/current_price,3)
+    position_size=round((trade_capital/current_price)/contract_size)
 
-    ftx.create_order('ETH-PERP','market','buy',position_size)
+    buy(position_size)
     state='long'
     entry=current_price
 
 elif trend == 'downtrend' and state != 'short':
     output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
     if state=='long':#close position
-        ftx.cancel_all_orders()
-        ftx.create_order('ETH-PERP','market','sell',position_size)
-        profit=current_price/entry - 1
-        balance=get_free_balance()
+        kucoin_main.cancel_all_orders()
+        sell(position.size)
+
     trade_capital=get_free_balance()
 
-    position_size=round(trade_capital/current_price,3)
+    position_size=round((trade_capital/current_price)/contract_size)
 
-    ftx.create_order('ETH-PERP','market','sell',position_size)
+    # sell(position_size)
     state='short'
     entry=current_price
-
 if output_string!='':
     print(output_string)
     append_new_line('ETH_swingtrader_log.txt',output_string)
-if state != 'neutral':
+if active_trade:
     print(datetime.now())
-    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(entry),str(current_price), PnL))
-
-# HEIKIN ASHI TRADER
-
-ftx_ha_trader = ccxt.ftx({
-    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
-    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
-    'enableRateLimit': True,
-})
-
-ftx_ha_trader.headers = { 'FTX-SUBACCOUNT':'HA_Trader' }
-
-def get_free_balance_ha():
-    return float(ftx_ha_trader.fetch_balance()['USD']['free'])
-
-def get_total_balance_ha():
-  return float(ftx_ha_trader.fetch_balance()['USD']['total'])
-
-output_string=''
-stop_loss=False
-weekly=price.get_price_data('1w',symbol='ETH/USD', offset=3)
-current_price=weekly.iloc[-1]['close'].item()
-uptrend=price.convert_data_to_heikin_ashi(weekly).iloc[-1]['Green']
-position=fetch_position(ftx_ha_trader)
-position_size=float(position['size'])
-active_trade=position_size!=0
-
-if active_trade:
-    entry=float(position['recentBreakEvenPrice'])
-    PnL=float(position['recentPnl'])
-    balance=get_total_balance_ha()
-    percentage_profit=(PnL/balance)*100
-    if percentage_profit>0:
-        tp_amount=round(np.log(percentage_profit)/20,2)
-    # stop_loss=len(main.get_conditional_orders())>0
-
-    if position['side']=='buy':
-        state='long'
-    else:
-        state='short'
-else:
-    state='neutral'
-
-if uptrend and state != 'long':
-
-    output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-    if state=='short':#close position
-        ftx_ha_trader.cancel_all_orders()
-        ftx_ha_trader.create_order('ETH-PERP','market','buy',position_size)
-        profit=1-current_price/entry
-        balance=get_free_balance_ha()
-
-    trade_capital=get_free_balance_ha()
-    position_size=round(0.99*(trade_capital/current_price),3)
-    ftx_ha_trader.create_order('ETH-PERP','market','buy',position_size)
-    state='long'
-    entry=current_price
-
-elif not(uptrend) and state != 'short':
-    output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-    if state=='long':#close position
-        ftx_ha_trader.cancel_all_orders()
-        ftx_ha_trader.create_order('ETH-PERP','market','sell',position_size)
-        profit=current_price/entry - 1
-        balance=get_free_balance_ha()
-        if profit>0:
-            amount=0.2*profit*balance
-            # transfer_to_savings(amount)
-    trade_capital=get_free_balance_ha()
-    position_size=round(0.99*(trade_capital/current_price),3)
-    ftx_ha_trader.create_order('ETH-PERP','market','sell',position_size)
-    state='short'
-    entry=current_price
-
-if active_trade:
-    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(entry),str(current_price),PnL))
+    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(position.entry),str(current_price), position.pnl))

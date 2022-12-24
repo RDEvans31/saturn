@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 from datetime import date, datetime
 import ccxt
-from pandas.core.base import DataError
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 import asyncio
@@ -22,6 +21,8 @@ binance = ccxt.binance({
     'enableRateLimit': True,
 })
 
+kraken = ccxt.kraken()
+
 cex= ccxt.cex({
     'uid' : 'up109520414',
     'apiKey': '1X2uEcPlvBCe4CcMtzWKguG1SDI',
@@ -29,11 +30,10 @@ cex= ccxt.cex({
     'enableRateLimit': True,
     })
 
-ftx = ccxt.ftx({
-    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
-    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
-    'enableRateLimit': True,
-})
+kucoin = ccxt.kucoinfutures({    
+    "apiKey": '6372b12d3671050001314dc3',
+    "secret": 'a69adc2e-457d-48a8-907b-d69f8afbbf08',
+    'password': 'SaturnApi',})
 
 #GETTING INFORMATION
 def find_start(candles, timeframe='weekly', offset=0):
@@ -135,8 +135,8 @@ def get_stored_data(symbol,timeframe):
     return df.sort_values(by=['unix'], ignore_index=True)
     
 # takes in the kline data and returns dataframe of timestamps and closing prices, could be adjusted for more price data
-def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=pd.DataFrame([]), offset=0): 
-
+def get_price_data(timeframe, exchange_str='kucoin', since=None, symbol=None, data=pd.DataFrame([]), offset=0): 
+    # kucoin futures symbols need to be 'ETH/USDT:USDT' format
     timeframes = {
         '1w': '1d', 
         '4h': '1h',
@@ -147,7 +147,7 @@ def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=
 
     timeframe_encoded = timeframes[timeframe]
 
-    exchange=ftx
+    exchange=kraken
     if exchange_str=='binance':
         exchange=binance
     elif exchange_str=='cex':
@@ -165,7 +165,7 @@ def get_price_data(timeframe, exchange_str='ftx', since=None, symbol=None, data=
         candles_retrieved=False
         while not(candles_retrieved):
             try:
-                candles=exchange.fetchOHLCV(symbol,timeframe_encoded,since=since)
+                candles=exchange.fetch_ohlcv(symbol,timeframe_encoded,since=since)
                 candles_retrieved=True
             except: 
                 print('error fetching price')
@@ -357,4 +357,3 @@ def convert_data_to_heikin_ashi(data):
     candles.set_index("Date", inplace=True)
     candles.drop("unix", axis=1, inplace=True)
     return candles
-

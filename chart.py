@@ -101,6 +101,7 @@ def get_dema(data,window,close=False):
 #swing trading
 def identify_trend(price_data, channel_period, minute=False): #using moving average channel
     channel=ma_channel(price_data,channel_period)
+    
     upper_bound=channel.iloc[-5:]['high']
     lower_bound=channel.iloc[-5:]['low']
 
@@ -109,6 +110,10 @@ def identify_trend(price_data, channel_period, minute=False): #using moving aver
     else:
         five_opens=price_data.iloc[-5:]['open']
 
+    print('Channel: ')
+    print(channel.iloc[-5:])
+    print('five opens: ')
+    print(five_opens)
     if (five_opens>upper_bound).all():
         return 'uptrend'
     elif (five_opens<lower_bound).all():
