@@ -1,41 +1,30 @@
-users = {
-    'rob': {
-        'weekly': True,
-        'exchanges': {
-            'ftx': {
-                'daily_buy_amount': 3,  # minimum amount to inveset per day, maximum is determined by risk level and algo. This amount gets split over all symbols for a particular exhange
-                'symbols':['ETH/USD', 'SOL/USD', 'MATIC/USD'],
-                'api':{
-                    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
-                    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
-                    'enableRateLimit': True,
-                },
-                'header': {'FTX-SUBACCOUNT':'Savings'}
-            },
-            'cex':{
-                'daily_buy_amount': 1,
-                'symbols':['ADA/USD'],
-                'api':{
-                    'uid' : 'up109520414',
-                    'apiKey': '1X2uEcPlvBCe4CcMtzWKguG1SDI',
-                    'secret': '8JY4fDg6hRz0DTolZHz77XPdC1o',
-                    'enableRateLimit': True,
-                }
-            }
-        }
-    },
-    'edward': {
-        'weekly': True, 
-        'exchanges': {
-            'ftx': {
-                'daily_buy_amount':1,
-                'symbols':['BTC/USD', 'ETH/USD'],
-                'api':{
-                    'apiKey': 'urrL3uM7B8yRZwq54WQXUgxX21NyI6AxQ0xv1lC7',
-                    'secret': 'vE9rU4lcNRE-CQmA9IAOX4K1r0Jlr5kskUpEc7BK',
-                    'enableRateLimit': True,
-                }
-            }
-        }
-    }
-}
+from calendar import calendar
+from math import remainder
+import numpy as np
+import pandas as pd
+from pandas.core.base import DataError
+from gql import gql, Client
+from gql.transport.aiohttp import AIOHTTPTransport
+
+# Select your transport with a defined url endpoint
+transport = AIOHTTPTransport(url="https://saturn.hasura.app/v1/graphql", headers={'x-hasura-admin-secret': 'Rc07SJt4ryC6RyNXDKFRAtFmRkGBbT8Ez3SdaEYsHQoHemCldvs52Kc803oK8X62'})
+client = Client(transport=transport, fetch_schema_from_transport=True)
+
+def getUserDetails(name):
+    query = gql(
+        """
+        query GetUserDetails($name: String!) {
+          accounts(account_name: (_eq: $name)) {
+            account_name
+            api_key
+            secret
+            id
+          }
+      }
+    """
+    )
+    result = client.execute(query,={"name": name})
+    print(result)
+    return result
+print(getUserDetails('rob_kucoin'))
+

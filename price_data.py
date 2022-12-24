@@ -70,6 +70,9 @@ def get_current_price(symbol):
     price_data=get_price_data(timeframe='1m',symbol=symbol)
     return price_data.iloc[-1]['close']
 
+def get_order_book(symbol):
+    return ftx.fetch_order_book(symbol=symbol, params={'group':1})
+
 def get_stored_data(symbol,timeframe):
     # Provide a GraphQL query
     split_symbol=symbol.split('/')
