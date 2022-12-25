@@ -1,8 +1,3 @@
-from calendar import calendar
-from math import remainder
-import numpy as np
-import pandas as pd
-from pandas.core.base import DataError
 from gql import gql, Client
 from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -12,19 +7,18 @@ client = Client(transport=transport, fetch_schema_from_transport=True)
 
 def getUserDetails(name):
     query = gql(
-        """
+      """
         query GetUserDetails($name: String!) {
-          accounts(account_name: (_eq: $name)) {
+          accounts(where: {account_name: {_eq: $name}}) {
             account_name
             api_key
             secret
+            trading_password
             id
           }
-      }
-    """
+        }
+      """
     )
-    result = client.execute(query,={"name": name})
-    print(result)
-    return result
-print(getUserDetails('rob_kucoin'))
-
+    result = client.execute(query,variable_values={"name": name})
+    account = result['accounts'][0]
+    return {'apiKey': account['api_key'], 'secret': account['secret'], 'password': account['trading_password']}
