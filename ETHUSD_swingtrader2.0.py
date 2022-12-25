@@ -4,21 +4,37 @@ import price_data as price
 import ccxt
 import chart
 from datetime import datetime
-from users import getUserDetails
+from users import *
 
-acc = getUserDetails('rob_kucoin')
+acc: User = getUserDetails('rob_kucoin')
 
-kucoin_main = ccxt.kucoinfutures({**acc})
+kucoin_main = ccxt.kucoinfutures(acc.toApiInputObject())
 
-symbol_binance='ETH/USDT'
-symbol_kucoin_futures='ETH/USDT:USDT'
+symbol_binance = 'ETH/USDT'
+symbol_kucoin_futures = 'ETH/USDT:USDT'
+
+# should give me the ETH/USDT trade id
+result = acc.getActiveTradesWithSymbol(symbol_kucoin_futures)
+trade_id = result['id'] if result != None else None
+
 
 class Position:
-    def __init__(self, side, size, pnl, entry ):
+    def __init__(self, symbol, side, size, pnl, entry):
+        self.symbol = symbol
         self.side = side
         self.size = size
         self.pnl = pnl
         self.entry = entry
+
+    def toObject(self):
+        return {
+            'symbol': self.symbol,
+            'side': self.side,
+            'size': self.size,
+            'pnl': self.pnl,
+            'entry': self.entry
+        }
+
 
 def append_new_line(file_name, text_to_append):
     """Append given text as a new line at the end of file"""
@@ -33,88 +49,115 @@ def append_new_line(file_name, text_to_append):
         # Append text at the end of file
         file_object.write(text_to_append)
 
+
 def get_free_balance():
     return float(kucoin_main.fetch_balance()['USDT']['free'])
 
+
 def get_total_balance():
-  return float(kucoin_main.fetch_balance()['USDT']['total'])
+    return float(kucoin_main.fetch_balance()['USDT']['total'])
+
 
 def buy(amount: float, price=None):
-    if price==None:
-        return kucoin_main.create_order(symbol_kucoin_futures,'market','buy',amount=amount, params={'leverage':2})
+    if price == None:
+        return kucoin_main.create_order(symbol_kucoin_futures, 'market', 'buy', amount=amount, params={'leverage': 2})
     else:
-        return kucoin_main.create_order(symbol_kucoin_futures,'limit','buy',amount=amount, price=price, params={'leverage':2})
+        return kucoin_main.create_order(symbol_kucoin_futures, 'limit', 'buy', amount=amount, price=price, params={'leverage': 2})
+
 
 def sell(amount: float, price=None):
-    if price==None:
-        return kucoin_main.create_order(symbol_kucoin_futures,'market','sell',amount=amount, params={'leverage':2})
+    if price == None:
+        return kucoin_main.create_order(symbol_kucoin_futures, 'market', 'sell', amount=amount, params={'leverage': 2})
     else:
-        return kucoin_main.create_order(symbol_kucoin_futures,'limit','sell',amount=amount, price=price, params={'leverage':2})
+        return kucoin_main.create_order(symbol_kucoin_futures, 'limit', 'sell', amount=amount, price=price, params={'leverage': 2})
+
 
 def get_position():
-    positions=kucoin_main.fetch_positions()
+    positions = kucoin_main.fetch_positions()
     if len(positions) == 0:
         return None
     else:
-        position=next(filter(lambda x: x['symbol']=='ETH/USDT:USDT', kucoin_main.fetch_positions()))
+        position = next(
+            filter(lambda x: x['symbol'] == symbol_kucoin_futures, kucoin_main.fetch_positions()))
         # amount is the number of contracts
         size = position['contracts']
         side = position['side']
-        pnl = position['info']['unrealisedPnl'] + position['info']['realisedPnl']
+        pnl = position['info']['unrealisedPnl'] + \
+            position['info']['realisedPnl']
         entry = position['entryPrice']
-        return Position(side,float(size),float(pnl),float(entry))
+        return Position(symbol_kucoin_futures, side, float(size), float(pnl), float(entry))
+
 
 position = get_position()
 
-daily=price.get_price_data('1d',symbol='ETH/USD')
-current_price=daily.iloc[-1]['close'].item()
-contract_size = kucoin_main.load_markets()[symbol_kucoin_futures]['contractSize']
-trend=chart.identify_trend(daily,7)
+daily = price.get_price_data('1d', symbol='ETH/USD')
+current_price = daily.iloc[-1]['close'].item()
+contract_size = kucoin_main.load_markets(
+)[symbol_kucoin_futures]['contractSize']
+trend = chart.identify_trend(daily, 7)
 
-active_trade= position!=None
+active_trade = position != None
 output_string = ''
 if active_trade:
-    state=position.side
+    state = position.side
 else:
-    state='neutral'
+    state = 'neutral'
 
 
 if trend == 'uptrend' and state != 'long':
 
-    output_string='flip long @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-    if state=='short':#close position
+    output_string = 'flip long @ ' + \
+        str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+    if state == 'short':  # close position
         kucoin_main.cancel_all_orders()
         buy(position.size)
 
-    trade_capital=get_free_balance()
+    trade_capital = get_free_balance()
 
-    position_size=round((trade_capital/current_price)/contract_size)
+    position_size = round((trade_capital/current_price)/contract_size)
 
     buy(position_size)
-    state='long'
-    entry=current_price
+    state = 'long'
+    entry = current_price
 
 elif trend == 'downtrend' and state != 'short':
-    output_string='flip short @ '+ str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
-    if state=='long':#close position
+    output_string = 'flip short @ ' + \
+        str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
+    if state == 'long':  # close position
         kucoin_main.cancel_all_orders()
         sell(position.size)
 
-    trade_capital=get_free_balance()
+    trade_capital = get_free_balance()
 
-    position_size=round((trade_capital/current_price)/contract_size)
+    position_size = round((trade_capital/current_price)/contract_size)
 
-
-    state='short'
-    entry=current_price
-if output_string!='':
+    state = 'short'
+    entry = current_price
+if output_string != '':
     # a trade has been made
     trade = {
-        
-        'side': state,
         'entry': entry,
+        'side': state,
+        'symbol': symbol_kucoin_futures,
+        'size': position_size,
+        'accountId': acc.id
     }
-    print(output_string)
-if active_trade:
+    acc.upsertTrade(trade)
+
+if active_trade or trade_id != None:
+    # currently active trade
+    trade = {
+        'entry': position.entry,
+        'side': position.side,
+        'symbol': symbol_kucoin_futures,
+        'accountId': acc.id,
+        'size': position.size,
+        'profit': position.pnl,
+    }
+    if trade_id != None:
+        trade['id'] = trade_id
+    trade_id = upsertTrade(trade)
+    upsertTrade(trade)
     print(datetime.now())
-    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(position.entry),str(current_price), position.pnl))
+    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (
+        str(datetime.now()), str(position.entry), str(current_price), position.pnl))
