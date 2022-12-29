@@ -1,22 +1,19 @@
-import price_data as price
-import asyncio
-import ccxt
+import requests
 
-ftx_ccxt = ccxt.ftx({
-    'apiKey': 'mFRyLR4AAhLTc5RlWov3PKTcIbMHw3vGZwiHnsrn',
-    'secret': 'oKaY1WEqTuhnNnq0iRi_Ry-CYckvE89-gPUPf21B',
-    'enableRateLimit': True
-})
 
-def fetch_position(exchange: ccxt.Exchange):
-    request = {
-        'showAvgPrice': True,
-    }
-    response = exchange.privateGetPositions(ftx_ccxt.extend(request))
-    result = ftx_ccxt.safe_value(response, 'result', [])
-    print(next(filter(lambda x: x['future']=='ETH-PERP',result)))
+# Replace API_KEY and API_SECRET with your API key and secret
+api_key = "6372b12d3671050001314dc3"
+api_secret = "a69adc2e-457d-48a8-907b-d69f8afbbf08"
 
-    # print(ftx_ccxt.parse_position(result[i]))
-    # ftx_ccxt.parse_position(result[i])
+# Set the API endpoint and headers
+endpoint = "https://api.kucoin.com"
+headers = {
+    "KC-API-KEY": api_key,
+    "KC-API-SECRET": api_secret,
+}
 
-fetch_position(ftx_ccxt)
+# Make a request to the API to get the list of markets
+response = requests.get(f"{endpoint}/v1/market/open/coins", headers=headers)
+
+# Print the response from the API
+print(response.json())

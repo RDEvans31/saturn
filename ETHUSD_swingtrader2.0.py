@@ -17,6 +17,19 @@ symbol_kucoin_futures = 'ETH/USDT:USDT'
 result = acc.getActiveTradesWithSymbol(symbol_kucoin_futures)
 trade_id = result['id'] if result != None else None
 
+def close_trade(trade_id, current_price):
+    query = gql(
+        """
+        mutation CloseTrade($id: uuid!, $exit: numeric) {
+          update_trades(where: {id: {_eq: $id}}, _set: {exit: $exit}) {
+            affected_rows
+          }
+        }
+      """
+    )
+    result = client.execute(query, variable_values={"id": trade_id, "exit": current_price})
+    print(result)
+
 
 class Position:
     def __init__(self, symbol, side, size, pnl, entry):
@@ -103,13 +116,14 @@ if active_trade:
 else:
     state = 'neutral'
 
-
 if trend == 'uptrend' and state != 'long':
 
     output_string = 'flip long @ ' + \
         str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
     if state == 'short':  # close position
         kucoin_main.cancel_all_orders()
+        close_trade(trade_id, current_price)
+        trade_id = None
         buy(position.size)
 
     trade_capital = get_free_balance()
@@ -125,6 +139,8 @@ elif trend == 'downtrend' and state != 'short':
         str(current_price)+' :'+datetime.utcnow().strftime("%m/%d/%y, %H:%M,%S")
     if state == 'long':  # close position
         kucoin_main.cancel_all_orders()
+        close_trade(trade_id, current_price)
+        trade_id = None
         sell(position.size)
 
     trade_capital = get_free_balance()
@@ -133,20 +149,11 @@ elif trend == 'downtrend' and state != 'short':
 
     state = 'short'
     entry = current_price
-if output_string != '':
-    # a trade has been made
-    trade = {
-        'entry': entry,
-        'side': state,
-        'symbol': symbol_kucoin_futures,
-        'size': position_size,
-        'accountId': acc.id
-    }
-    acc.upsertTrade(trade)
 
-if active_trade or trade_id != None:
+if trade_id != None:
     # currently active trade
     trade = {
+        'id': trade_id,
         'entry': position.entry,
         'side': position.side,
         'symbol': symbol_kucoin_futures,
@@ -154,10 +161,24 @@ if active_trade or trade_id != None:
         'size': position.size,
         'profit': position.pnl,
     }
-    if trade_id != None:
-        trade['id'] = trade_id
+    if output_string != '':
+        # new trade so close existing trade
+        trade['exit'] = current_price
     trade_id = upsertTrade(trade)
     upsertTrade(trade)
-    print(datetime.now())
-    print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (
-        str(datetime.now()), str(position.entry), str(current_price), position.pnl))
+
+if output_string != '':
+    # a trade has been made
+    new_trade = {
+        'entry': entry,
+        'side': state,
+        'symbol': symbol_kucoin_futures,
+        'size': position_size,
+        'accountId': acc.id
+    }
+    upsertTrade(new_trade)
+
+print(datetime.now())
+print("Date: %s, Breakeven: %s, Current price: % s, PnL: % s" % (str(datetime.now()), str(position.entry), str(current_price), position.pnl))
+
+
