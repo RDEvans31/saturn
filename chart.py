@@ -110,13 +110,27 @@ def identify_trend(price_data, channel_period, minute=False): #using moving aver
     else:
         five_opens=price_data.iloc[-5:]['open']
 
-    print('Channel: ')
-    print(channel.iloc[-5:])
-    print('five opens: ')
-    print(five_opens)
     if (five_opens>upper_bound).all():
         return 'uptrend'
     elif (five_opens<lower_bound).all():
+        return 'downtrend'
+    else:
+        return 'neutral'
+
+def identify_trend_variable(price_data, channel_period, no_opens=5, minute=False): #using moving average channel
+    channel=ma_channel(price_data,channel_period)
+    
+    upper_bound=channel.iloc[-no_opens:]['high']
+    lower_bound=channel.iloc[-no_opens:]['low']
+
+    if minute:
+        opens=price_data.iloc[-no_opens:]['close']
+    else:
+        opens=price_data.iloc[-no_opens:]['open']
+
+    if (opens>upper_bound).all():
+        return 'uptrend'
+    elif (opens<lower_bound).all():
         return 'downtrend'
     else:
         return 'neutral'
