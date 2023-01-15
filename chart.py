@@ -235,11 +235,28 @@ def get_atr(candles,periods=14):
         candle=candles.iloc[i]
         high=candle['high']
         low=candle['low']
-        close=candle['close']
-        true_range=max([high-low,abs(high-close),abs(close-low)])
+        open_price=candle['open'] #the previous closed price is supposed to be used, which is the same as the current open
+        true_range=max([high-low,abs(high-open_price),abs(open_price-low)])
         tr.append(true_range)
         index.append(candle['unix'])
     tr=pd.Series(tr, index=index)
+    atr = tr.rolling(window=periods).mean().shift(periods=1)
+
+    return atr
+
+def get_normalised_atr(candles,periods=14):
+    tr=[]
+    index=[]
+    for i in range(len(candles)):
+        candle=candles.iloc[i]
+        high=candle['high']
+        low=candle['low']
+        open_price=candle['open'] #the previous closed price is supposed to be used, which is the same as the current open
+        true_range=max([high-low,abs(high-open_price),abs(open_price-low)])
+        tr.append(true_range/open_price)
+        index.append(candle['unix'])
+    tr=pd.Series(tr, index=index)
+    # atr.iloc[-1] will always be a value that is not based on future data
     atr = tr.rolling(window=periods).mean().shift(periods=1)
 
     return atr
