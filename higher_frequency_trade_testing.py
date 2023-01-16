@@ -6,9 +6,41 @@ import chart
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pickle
 
 # import the data from the csv file
 price_data_csv = pd.read_csv("data/FTX_ETHUSD_1h.csv")
+
+class Context: 
+    def __init__(self, price_data, calculation_window, trade_side, context_window=10):
+        self.price_data = price_data
+        self.calculation_window = calculation_window
+        self.context_window = context_window
+        self.context_sequence = self.calculate_context_sequence()
+        self.trade_side = trade_side
+    
+    def calculate_context_sequence(self):
+        self.context_window
+        current_price = price_data.iloc[-1]['open']
+        moving_average_channel = chart.ma_channel(price_data, self.calculation_window)
+        # ratio between last 10 open prices and the corresponding upper and lower bounds of the moving average channel
+        open_prices = price_data.iloc[-self.context_window:]['open']
+        upper_bounds = moving_average_channel.iloc[-self.context_window:]['high']
+        lower_bounds = moving_average_channel.iloc[-self.context_window:]['low']
+        open_upper_ratio = (open_prices-upper_bounds)/(upper_bounds-lower_bounds)
+        open_lower_ratio = (open_prices-lower_bounds)/(upper_bounds-lower_bounds)
+        upper_lower__open_ratio = (upper_bounds-lower_bounds)/(open_prices)
+        normalised_atr = chart.get_normalised_atr(price_data, self.calculation_window).iloc[-self.context_window:]
+        # print all lengths 
+        context_sequence = np.array([open_upper_ratio, open_lower_ratio, upper_lower__open_ratio, normalised_atr])
+        return context_sequence.T
+
+    def get_context_sequence(self):
+        trade = 0
+        if self.trade_side == 'long':
+            trade = 1
+        return (trade,self.context_sequence)
+        
 
 
 def identify_trend_variable(price_data, channel_period, no_opens=5, minute=False): #using moving average channel
@@ -41,10 +73,13 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
     # ma_channel_window = 24
     # no_opens = 2
     trades =[]
+    contextual_data = []
     for i, row in price_data.iterrows():
-
+        print(f"Processing: {(i/len(price_data))*100:.2f}%")
         if i>ma_channel_window+no_opens:
+            
             # Get the open, high, low, and close prices
+            current_time = row['unix']
             open_price = row["open"]
             high_price = row["high"]
             low_price = row["low"]
@@ -70,7 +105,7 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
                     position = "long"
                     timestamp = row['unix']
                     entry = open_price
-                
+                trade_context = Context(current_price_data, ma_channel_window, position)
 
             # exit condition
             # essentially mean reversion
@@ -82,21 +117,22 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
                     balance += ((open_price - entry)/entry)*balance
                 elif position == "short":
                     balance += ((entry - open_price)/entry)*balance
-                trades.append((pd.to_datetime(timestamp, unit='ms'),position, open_price, entry, balance, prev_balance<balance, open_price<channel.iloc[-1]['high'] and open_price>entry, open_price>channel.iloc[-1]['low']and open_price<entry))
+                trades.append((pd.to_datetime(timestamp, unit='ms'), pd.to_datetime(current_time, unit='ms'),position, open_price, entry, balance, prev_balance<balance, open_price<channel.iloc[-1]['high'] and open_price>entry, open_price>channel.iloc[-1]['low']and open_price<entry))
+                contextual_data.append((trade_context.get_context_sequence(), prev_balance<balance))
                 timestamp=None
                 position = None
                 
         if balance<=0:
             break
 
-    trades_df = pd.DataFrame(trades, columns=['timestamp','side', 'exit', 'entry', 'balance', 'win', 'open_below_channel_high', 'open_above_channel_low'])
+    trades_df = pd.DataFrame(trades, columns=['timestamp', 'timestamp_exit','side', 'exit', 'entry', 'balance', 'win', 'open_below_channel_high', 'open_above_channel_low'])
     print(trades_df)
     win_rate = trades_df['win'].sum()/len(trades_df)
     print(f"Win rate: {win_rate:.2f}")
     # Calculate the overall performance of the strategy
     roi = (balance - 1000.0) / 1000.0
     print(f"ROI: {roi:.2f}")
-    return balance, trades_df
+    return balance, trades_df, contextual_data
 
 # for hourly data it seems around 130 is the best option for the moving channel window
 # for minute data it seems around 23 is the best option for the moving channel window
@@ -116,18 +152,6 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
 # print(results_df)
 
 # print the timestamp of the first and last rows of price_data
-
-balance, trades_df = backtest_strategy(price_data, 4, 128)
-trades_df['rolling_balance'] = trades_df['value'].rolling(window=5).mean()
-sns.scatterplot(x='timestamp', y='balance', data=trades_df)
-sns.lineplot(x='timestamp', y='rolling_balance', data=trades_df, color='red', label='5 day rolling balance')
-plt.show()
-# # only show the rows from trades_df where win is false
-# losses = trades_df[trades_df['win']==False]
-wins = trades_df[trades_df['win']==True]
-# # calculate the average loss by taking the differnce between the entry and exit price and dividing by the entry price
-# loss = abs(losses['entry']-losses['exit'])/losses['entry']
-win = abs(wins['entry']-wins['exit'])/wins['entry']
-print(win.max())
-# print(trades_df)
-# print(win.mean()/loss.mean())
+balance, trades_df, training_data = backtest_strategy(price_data, 4, 128)
+with open('data/mean_reversion_training_data.pkl', 'wb') as f:
+    pickle.dump(training_data, f)
