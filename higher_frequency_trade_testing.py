@@ -9,7 +9,7 @@ import seaborn as sns
 import pickle
 
 # import the data from the csv file
-price_data_csv = pd.read_csv("data/FTX_ETHUSD_1h.csv")
+price_data_csv = pd.read_csv("data/Bitfinex_ETHUSD_1h.csv")
 
 class Context: 
     def __init__(self, price_data, calculation_window, trade_side, context_window=10):
@@ -66,6 +66,7 @@ def identify_trend_variable(price_data, channel_period, no_opens=5, minute=False
 # price_data = price.get_price_data('1h', symbol='ETH/USD')
 price_data = price.get_price_data(data=price_data_csv, timeframe='1h')
 print(f"Datapoints: {len(price_data)/24}")
+
 def backtest_strategy(price_data, no_opens, ma_channel_window):
 
     balance = 1000.0
@@ -75,7 +76,7 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
     trades =[]
     contextual_data = []
     for i, row in price_data.iterrows():
-        print(f"Processing: {(i/len(price_data))*100:.2f}%")
+        print(f'Processing: {(i/len(price_data))*100:.2f}%', end='\r')
         if i>ma_channel_window+no_opens:
             
             # Get the open, high, low, and close prices
@@ -105,7 +106,7 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
                     position = "long"
                     timestamp = row['unix']
                     entry = open_price
-                trade_context = Context(current_price_data, ma_channel_window, position)
+                # trade_context = Context(current_price_data, ma_channel_window, position)
 
             # exit condition
             # essentially mean reversion
@@ -118,12 +119,12 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
                 elif position == "short":
                     balance += ((entry - open_price)/entry)*balance
                 trades.append((pd.to_datetime(timestamp, unit='ms'), pd.to_datetime(current_time, unit='ms'),position, open_price, entry, balance, prev_balance<balance, open_price<channel.iloc[-1]['high'] and open_price>entry, open_price>channel.iloc[-1]['low']and open_price<entry))
-                contextual_data.append((trade_context.get_context_sequence(), prev_balance<balance))
+                # contextual_data.append((trade_context.get_context_sequence(), prev_balance<balance))
                 timestamp=None
                 position = None
                 
-        if balance<=0:
-            break
+        # if balance<=0:
+        #     break
 
     trades_df = pd.DataFrame(trades, columns=['timestamp', 'timestamp_exit','side', 'exit', 'entry', 'balance', 'win', 'open_below_channel_high', 'open_above_channel_low'])
     print(trades_df)
@@ -153,5 +154,5 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
 
 # print the timestamp of the first and last rows of price_data
 balance, trades_df, training_data = backtest_strategy(price_data, 4, 128)
-with open('data/mean_reversion_training_data.pkl', 'wb') as f:
-    pickle.dump(training_data, f)
+# with open('data/mean_reversion_training_data.pkl', 'wb') as f:
+#     pickle.dump(training_data, f)

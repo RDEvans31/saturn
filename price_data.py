@@ -159,7 +159,10 @@ def get_price_data(timeframe, exchange_str='kucoin', since=None, symbol=None, da
         candles=[]
         for i in range(len(data)):
             candle=data.iloc[i]
-            candles.append((candle['unix'],candle['open'], candle['high'],candle['low'], candle['close']))
+            timestamp = candle['unix']
+            if candle['unix']<=1000000000000:
+                timestamp=int(candle['unix']*1000)
+            candles.append((timestamp,candle['open'], candle['high'],candle['low'], candle['close']))
 
     elif symbol !=None:
         candles_retrieved=False
