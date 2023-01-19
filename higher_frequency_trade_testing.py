@@ -4,7 +4,6 @@ import price_data as price
 import ccxt
 import chart
 from datetime import datetime
-import matplotlib.pyplot as plt
 import seaborn as sns
 import pickle
 
