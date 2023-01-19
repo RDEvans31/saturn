@@ -4,7 +4,6 @@ import price_data as price
 import ccxt
 import chart
 from datetime import datetime
-import seaborn as sns
 import pickle
 
 # import the data from the csv file
