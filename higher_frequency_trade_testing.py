@@ -106,7 +106,7 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
                     position = "long"
                     timestamp = row['unix']
                     entry = open_price
-                # trade_context = Context(current_price_data, ma_channel_window, position)
+                trade_context = Context(current_price_data, ma_channel_window, position)
 
             # exit condition
             # essentially mean reversion
@@ -119,7 +119,7 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
                 elif position == "short":
                     balance += ((entry - open_price)/entry)*balance
                 trades.append((pd.to_datetime(timestamp, unit='ms'), pd.to_datetime(current_time, unit='ms'),position, open_price, entry, balance, prev_balance<balance, open_price<channel.iloc[-1]['high'] and open_price>entry, open_price>channel.iloc[-1]['low']and open_price<entry))
-                # contextual_data.append((trade_context.get_context_sequence(), prev_balance<balance))
+                contextual_data.append((trade_context.get_context_sequence(), prev_balance<balance))
                 timestamp=None
                 position = None
                 
@@ -154,5 +154,5 @@ def backtest_strategy(price_data, no_opens, ma_channel_window):
 
 # print the timestamp of the first and last rows of price_data
 balance, trades_df, training_data = backtest_strategy(price_data, 4, 128)
-# with open('data/mean_reversion_training_data.pkl', 'wb') as f:
-#     pickle.dump(training_data, f)
+with open('data/mean_reversion_training_data.pkl', 'wb') as f:
+    pickle.dump(training_data, f)
