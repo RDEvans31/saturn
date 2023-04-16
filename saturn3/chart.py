@@ -1,0 +1,334 @@
+import ccxt
+import statistics
+import time
+from pprint import pprint
+import numpy as np
+import pandas as pd
+from scipy.signal import find_peaks
+from scipy.interpolate import interp1d
+from scipy.stats import norm
+import math
+import dydx_helper as dydx
+import sys
+from datetime import datetime
+
+# trend analysis
+
+
+def get_gradient(ma, shifted=True):
+    gradient = pd.Series(index=ma["unix"].values, data=np.gradient(ma["value"]))
+    if shifted:
+        gradient_shifted = gradient.shift(periods=1)
+        gradient = gradient_shifted.dropna()
+    return gradient
+
+
+def ma_channel(data, window, shift=True):
+    timestamps = data["unix"]
+    sma = data.rolling(window).mean()
+    if shift:
+        sma = sma.shift(periods=1)
+    sma["unix"] = timestamps
+    sma.dropna(inplace=True)
+
+    return pd.DataFrame({"unix": sma["unix"], "high": sma["high"], "low": sma["low"]})
+
+
+def h_l_channel(data, window, shifted=False):
+    timestamps = data["unix"]
+    if shifted:
+        high = data.rolling(window).max()["open"]
+        low = data.rolling(window).min()["open"]
+    else:
+        high = data.rolling(window).max()["open"].shift(periods=1)
+        low = data.rolling(window).min()["open"].shift(periods=1)
+
+    result = pd.DataFrame({"unix": timestamps, "high": high, "low": low})
+    result.dropna(inplace=True)
+    return result
+
+
+def supertrend(data, window, shifted=False):  # unfinished
+    channel = h_l_channel(data, window, shifted)
+    channel = channel.iloc[-window:]
+    high_diff = get_differences(channel["unix"], channel["high"])
+    low_diff = get_differences(channel["unix"], channel["low"])
+    high_diff = high_diff.loc[high_diff > 0]
+    low_diff = low_diff.loc[low_diff < 0]
+
+    return high_diff, low_diff
+
+
+def get_differences(timestamps, data):
+    differences = np.diff(data, 1)
+    timestamps = timestamps.shift(periods=-1).dropna()
+    differences = pd.Series(index=timestamps.values, data=differences)
+    return differences
+
+
+def get_sma(data, window, close=False):
+    # using daily for now
+    timestamps = data["unix"][window - 1 :]
+    if close:
+        sma = data.rolling(window).mean()["close"].dropna()
+    else:
+        sma = data.rolling(window).mean()["open"].dropna()
+    return pd.DataFrame({"unix": timestamps, "value": sma})
+
+
+def get_ema(data, window, close=False):
+    timestamps = data["unix"][window:]
+    if close:
+        ema = (
+            data.ewm(span=window, min_periods=window + 1, adjust=False)
+            .mean()["close"]
+            .dropna()
+        )
+    else:
+        ema = (
+            data.ewm(span=window, min_periods=window + 1, adjust=False)
+            .mean()["open"]
+            .dropna()
+        )
+    return pd.DataFrame({"unix": timestamps, "value": ema})
+
+
+def get_dema(data, window, close=False):
+    ema = get_ema(data, window)
+    ema = ema.rename(columns={"value": "open"})
+    smoothed_ema = get_ema(ema, window)
+    # making both vectors the same length
+    start = np.min(smoothed_ema.index.values)
+    ema = ema.loc[start:]
+    timestamps = ema["unix"].values
+    ema = ema["open"].values
+    smoothed_ema = smoothed_ema["value"].values
+    dema = (2 * ema) - smoothed_ema  # type: ignore
+    return pd.DataFrame({"unix": timestamps, "value": dema})
+
+
+# swing trading
+def identify_trend(
+    price_data: pd.DataFrame, channel_period: int, no_opens=5, minute=False
+):  # using moving average channel
+    channel = ma_channel(price_data, channel_period)
+
+    upper_bound = channel.iloc[-no_opens:]["high"]
+    lower_bound = channel.iloc[-no_opens:]["low"]
+
+    if minute:
+        five_opens = price_data.iloc[-no_opens:]["close"]
+    else:
+        five_opens = price_data.iloc[-no_opens:]["open"]
+
+    if (five_opens > upper_bound).all():
+        return "uptrend"
+    elif (five_opens < lower_bound).all():
+        return "downtrend"
+    else:
+        return "neutral"
+
+
+def identify_trend_variable(
+    price_data, channel_period, no_opens=5, minute=False
+):  # using moving average channel
+    channel = ma_channel(price_data, channel_period)
+
+    upper_bound = channel.iloc[-no_opens:]["high"]
+    lower_bound = channel.iloc[-no_opens:]["low"]
+
+    if minute:
+        opens = price_data.iloc[-no_opens:]["close"]
+    else:
+        opens = price_data.iloc[-no_opens:]["open"]
+
+    if (opens > upper_bound).all():
+        return "uptrend"
+    elif (opens < lower_bound).all():
+        return "downtrend"
+    else:
+        return "neutral"
+
+
+# data analysis
+def risk_indicator(fast, slow):
+    min_timestamp = max(fast["unix"].min(), slow["unix"].min())
+
+    trimmed_fast = fast.loc[fast["unix"] >= min_timestamp]
+    slow = slow.loc[slow["unix"] >= min_timestamp]
+    if len(trimmed_fast) > len(slow):
+        # different values, ie using a daily for fast and weekly for slow
+        if slow["unix"].max() < trimmed_fast["unix"].max():
+            # add another value to the slow moving avarage to facilitate interpolation
+            slow = slow.append(
+                {"unix": trimmed_fast["unix"].max(), "value": slow.iloc[-1]["value"]},
+                ignore_index=True,
+            )
+        f = interp1d(slow["unix"], slow["value"])
+        slow_interpolated = f(trimmed_fast["unix"])
+        slow = pd.DataFrame({"unix": trimmed_fast["unix"], "value": slow_interpolated})
+
+    if "open" in fast.columns.values.tolist():
+        # using price
+        risk_metric = np.divide(trimmed_fast["open"], slow["value"])
+    else:
+        # using moving average
+        risk_metric = np.divide(trimmed_fast["value"], slow["value"])
+
+    mean = np.mean(risk_metric)
+    sigma = np.std(risk_metric)
+    normalised = (risk_metric - mean) / sigma
+    risk = norm.cdf(normalised)
+    return pd.DataFrame(
+        {"unix": np.array(trimmed_fast["unix"], dtype=np.int64), "value": risk}
+    )
+
+
+def basic_risk(price):
+    mean = np.mean(price["open"])
+    sigma = np.std(price["open"])
+    normalised = (price - mean) / sigma
+    risk = norm.cdf(normalised)
+    return pd.DataFrame(
+        {"unix": np.array(price["unix"], dtype=np.int64), "value": risk}
+    )
+
+
+def get_maxima(data, range_param=3):
+    n = len(data.index)
+    if n > 0:
+        peaks = []
+        for i in range(3, n):
+            current_series = data.iloc[i]
+            domain_range = min([n - 1 - i, range_param])
+            subset = []
+            if domain_range == range_param:
+                subset = data.iloc[i - range_param : i + range_param + 1]
+            else:
+                subset = data.iloc[i - range_param : i + domain_range + 1]
+
+            if current_series["high"] == subset["high"].max():
+                peaks.append(
+                    [
+                        current_series["unix"],
+                        current_series["close"],
+                        current_series["high"],
+                    ]
+                )
+
+        peaks_df = pd.DataFrame(data=peaks, columns=["unix", "close", "extreme"])
+        return peaks_df.sort_values(by="unix", ascending=False)
+    else:
+        return None
+
+
+def get_minima(data, range_param=3):
+    n = len(data.index)  # last index
+    if n > 0:
+        troughs = []
+        for i in range(3, n):
+            current_series = data.iloc[i]
+            domain_range = min([n - 1 - i, 3])
+            domain_range = min([n - 1 - i, range_param])
+            subset = []
+            if domain_range == range_param:
+                subset = data.iloc[i - range_param : i + range_param + 1]
+            else:
+                subset = data.iloc[i - range_param : i + domain_range + 1]
+
+            if current_series["low"] == subset["low"].min():
+                troughs.append(
+                    [
+                        current_series["unix"],
+                        current_series["close"],
+                        current_series["low"],
+                    ]
+                )
+
+        troughs_df = pd.DataFrame(data=troughs, columns=["unix", "close", "extreme"])
+        return troughs_df.sort_values(by="unix", ascending=False)
+    else:
+        return None
+
+
+def get_rsi(candles, periods=14):
+    close_delta = candles["close"].diff()
+
+    # Make two series: one for lower closes and one for higher closes
+    up = close_delta.clip(lower=0)
+    down = -1 * close_delta.clip(upper=0)
+
+    # Use exponential moving average
+    ma_up = up.ewm(com=periods - 1, adjust=True, min_periods=periods).mean()
+    ma_down = down.ewm(com=periods - 1, adjust=True, min_periods=periods).mean()
+
+    rsi = ma_up / ma_down
+    rsi = 100 - (100 / (1 + rsi))
+    return rsi
+
+
+def get_atr(candles, periods=14):
+    tr = []
+    index = []
+    for i in range(len(candles)):
+        candle = candles.iloc[i]
+        high = candle["high"]
+        low = candle["low"]
+        open_price = candle[
+            "open"
+        ]  # the previous closed price is supposed to be used, which is the same as the current open
+        true_range = max([high - low, abs(high - open_price), abs(open_price - low)])
+        tr.append(true_range)
+        index.append(candle["unix"])
+    tr = pd.Series(tr, index=index)
+    atr = tr.rolling(window=periods).mean().shift(periods=1)
+
+    return atr
+
+
+def get_normalised_atr(candles, periods=14):
+    tr = []
+    index = []
+    for i in range(len(candles)):
+        candle = candles.iloc[i]
+        high = candle["high"]
+        low = candle["low"]
+        open_price = candle[
+            "open"
+        ]  # the previous closed price is supposed to be used, which is the same as the current open
+        true_range = max([high - low, abs(high - open_price), abs(open_price - low)])
+        tr.append(true_range / open_price)
+        index.append(candle["unix"])
+    tr = pd.Series(tr, index=index)
+    # atr.iloc[-1] will always be a value that is not based on future data
+    atr = tr.rolling(window=periods).mean().shift(periods=1)
+
+    return atr
+
+
+def get_bb(data, period, multiple):  # based on opening prices
+    timestamps = data["unix"].iloc[period - 1 :]
+    ma = data.rolling(period)["open"].mean().dropna()
+    std = data.rolling(period)["open"].std().dropna()
+    upper_bb = ma + multiple * std
+    lower_bb = ma - multiple * std
+
+    return pd.DataFrame(
+        {"unix": timestamps, "ma": ma, "upper": upper_bb, "lower": lower_bb}
+    )
+
+
+def get_deviations(line, price_data):
+    def deviated(candle, line):
+        open_price = candle["open"]
+        close_price = candle["close"]
+        if (open_price > line and close_price < line) or (
+            open_price < line and close_price > line
+        ):
+            return True
+        else:
+            return False
+
+    deviated_candles = price_data.apply(deviated, args=(line,), axis=1)
+    deviations = len(price_data[deviated_candles].index)
+    return deviations
