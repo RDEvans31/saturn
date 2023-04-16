@@ -13,6 +13,7 @@ import time
 import numpy as np
 import pandas as pd
 from models import Position
+from typing import Optional
 
 
 def convert_iso_string_to_unix_timestamp(iso_string):
@@ -135,7 +136,7 @@ class DydxPrivate(DydxPublic):
         )
         return res.data.get("candles")[0].get("close")
 
-    def get_open_position(self, market: str) -> Position | None:
+    def get_open_position(self, market: str) -> Optional[Position]:
         res = self.client.private.get_positions(
             market=market, status=POSITION_STATUS_OPEN, limit="1"
         )
