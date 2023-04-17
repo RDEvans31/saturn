@@ -78,7 +78,7 @@ class SaturnTrader:
 
     def strategy(self, price_data: pd.DataFrame, symbol: str):
         # Check the trend
-        trend = chart.identify_trend(price_data, 7, 4)
+        trend = chart.identify_trend(price_data, 7, 5)
         # fetch active positions from dydx
         active_position = self.check_current_position(symbol)
         state = active_position.side if active_position else "neutral"
