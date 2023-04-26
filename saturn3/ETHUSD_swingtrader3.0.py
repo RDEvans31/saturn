@@ -38,11 +38,14 @@ class SaturnTrader:
     def insert_new_trade(self, market: str, side: str, size: float):
         # insert new trade in db
         trade = {
+            "id": None,
             "accountId": self.user.id,
             "symbol": market,
             "size": size,
             "side": side,
             "entry": self.trader.get_current_price(market),
+            "exit": None,
+            "profit": None,
         }
         return upsertTrade(Trade(**trade))
 

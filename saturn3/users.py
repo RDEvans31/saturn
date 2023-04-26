@@ -115,6 +115,7 @@ def getUserDetails(name):
 
 
 def upsertTrade(trade: Trade):
+    trade_dict = {k: v for k, v in trade._asdict().items() if v is not None}
     query = gql(
         """
         mutation UpsertTrade($trade: trades_insert_input!) {
@@ -125,5 +126,5 @@ def upsertTrade(trade: Trade):
       """
     )
 
-    result = client.execute(query, variable_values={"trade": trade._asdict()})
+    result = client.execute(query, variable_values={"trade": trade_dict})
     return result
