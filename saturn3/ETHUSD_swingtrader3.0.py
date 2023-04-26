@@ -88,14 +88,14 @@ class SaturnTrader:
                 self.close_position(active_position)
             orderResponse = self.execute_long(symbol, amountInUsd=self.tradingAmount)
             order = Order(**orderResponse.data["order"])
-            print(self.insert_new_trade(order.market, order.side, float(order.size)))
+            print(self.insert_new_trade(order.market, "LONG", float(order.size)))
             
         elif trend == "downtrend" and state != "SHORT":
             if active_position:
                 self.close_position(active_position)
             orderResponse = self.execute_short(symbol, amountInUsd=self.tradingAmount)
             order = Order(**orderResponse.data["order"])
-            print(self.insert_new_trade(order.market, order.side, float(order.size)))
+            print(self.insert_new_trade(order.market, "SHORT", float(order.size)))
         else:
             if active_position:
                 print(self.update_trade(active_position))
