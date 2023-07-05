@@ -154,11 +154,11 @@ class DydxPrivate(DydxPublic):
             side = position.side
             if side == "LONG":
                 return self.place_sell_order(
-                    position.market, amountInCurrency=position_size
+                    position.market, amountInCurrency=abs(position_size)
                 )
             elif side == "SHORT":
                 return self.place_buy_order(
-                    position.market, amountInCurrency=position_size
+                    position.market, amountInCurrency=abs(position_size)
                 )
             else:
                 raise Exception("Position side not supported")

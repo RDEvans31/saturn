@@ -113,13 +113,28 @@ def getUserDetails(name):
         starkpkey,
     )
 
+def deleteTrade(id):
+    mutation = gql(
+        """
+        mutation DeleteActiveTrade($id: uuid!) {
+            delete_trades_by_pk(id: $id) {
+                id
+            }
+        }
+        """
+    )
+    result = client.execute(mutation, variable_values={id: id})
+    return result
+
+
+
 
 def upsertTrade(trade: Trade):
     trade_dict = {k: v for k, v in trade._asdict().items() if v is not None}
     query = gql(
         """
         mutation UpsertTrade($trade: trades_insert_input!) {
-          insert_trades_one(object: $trade, on_conflict: {constraint: trades_pkey, update_columns: [exit, profit]}) {
+          insert_trades_one(object: $trade, on_conflict: {constraint: trades_pkey, update_columns: [exit, profit, entry]}) {
             id
           }
         }

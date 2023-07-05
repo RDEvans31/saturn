@@ -1,6 +1,5 @@
-import time
 import pandas as pd
-from users import getUserDetails, upsertTrade
+from users import getUserDetails, upsertTrade, deleteTrade
 from dydx_helper import DydxPrivate
 import chart
 from models import Position, Trade, Order
@@ -49,17 +48,22 @@ class SaturnTrader:
         }
         return upsertTrade(Trade(**trade))
 
+    def delete_old_active_trade(self, id):
+        # doesn't work
+        return deleteTrade(id)
+
     def update_trade(self, position: Position, close=False):
         # fetch active trade from db
         active_trade = self.user.getActiveTradesWithSymbol(position.market)
         if close:
             if active_trade:
                 # update trade with exit
-                updated_trade = active_trade._replace(exit=self.trader.get_current_price(position.market), profit=position.unrealizedPnl)
+                updated_trade = active_trade._replace(exit=self.trader.get_current_price(position.market), profit=position.unrealizedPnl, entry=float(position.entryPrice))
                 return upsertTrade(updated_trade)
             else:
                 # insert new trade with exit
                 trade = {
+                    "id": None,
                     "accountId": self.user.id,
                     "symbol": position.market,
                     "side": position.side,
@@ -73,8 +77,14 @@ class SaturnTrader:
         else:
             # update trade with current unrealised pnl
             if active_trade:
-                updated_trade = active_trade._replace(profit=position.unrealizedPnl)
-                return upsertTrade(updated_trade)
+                if active_trade.side == position.side:
+                    updated_trade = active_trade._replace(profit=position.unrealizedPnl, entry=float(position.entryPrice))
+                    return upsertTrade(updated_trade)
+                else: #a new trade as been started but not entered, delete the old active trade and replace with new
+                    updated_trade = active_trade._replace(exit=self.trader.get_current_price(position.market), profit=position.unrealizedPnl, entry=float(position.entryPrice))
+                    upsertTrade(updated_trade)
+                    return self.insert_new_trade(position.market, position.side, position.size)
+
             else:
                 print("Trade does not exist in the db. Creating new record.")
                 return self.insert_new_trade(position.market, position.side, position.size)
@@ -84,6 +94,8 @@ class SaturnTrader:
         trend = chart.identify_trend(price_data, 7, 5)
         # fetch active positions from dydx
         active_position = self.check_current_position(symbol)
+        if active_position:
+            print("Currently active position: ", active_position)
         state = active_position.side if active_position else "neutral"
         # Execute strategy based on the trend
         if trend == "uptrend" and state != "LONG":
@@ -91,13 +103,15 @@ class SaturnTrader:
                 self.close_position(active_position)
             orderResponse = self.execute_long(symbol, amountInUsd=self.tradingAmount)
             order = Order(**orderResponse.data["order"])
+            print("Switch to LONG")
             print(self.insert_new_trade(order.market, "LONG", float(order.size)))
-            
+
         elif trend == "downtrend" and state != "SHORT":
             if active_position:
                 self.close_position(active_position)
             orderResponse = self.execute_short(symbol, amountInUsd=self.tradingAmount)
             order = Order(**orderResponse.data["order"])
+            print("Switch to SHORT")
             print(self.insert_new_trade(order.market, "SHORT", float(order.size)))
         else:
             if active_position:
