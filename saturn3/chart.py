@@ -1,12 +1,7 @@
-import ccxt
-import statistics
-import time
 from pprint import pprint
 import numpy as np
 import pandas as pd
-from scipy.signal import find_peaks
-from scipy.interpolate import interp1d
-from scipy.stats import norm
+# from scipy.stats import norm
 import math
 import dydx_helper as dydx
 import sys
@@ -151,47 +146,47 @@ def identify_trend_variable(
 
 
 # data analysis
-def risk_indicator(fast, slow):
-    min_timestamp = max(fast["unix"].min(), slow["unix"].min())
+# def risk_indicator(fast, slow):
+#     min_timestamp = max(fast["unix"].min(), slow["unix"].min())
 
-    trimmed_fast = fast.loc[fast["unix"] >= min_timestamp]
-    slow = slow.loc[slow["unix"] >= min_timestamp]
-    if len(trimmed_fast) > len(slow):
-        # different values, ie using a daily for fast and weekly for slow
-        if slow["unix"].max() < trimmed_fast["unix"].max():
-            # add another value to the slow moving avarage to facilitate interpolation
-            slow = slow.append(
-                {"unix": trimmed_fast["unix"].max(), "value": slow.iloc[-1]["value"]},
-                ignore_index=True,
-            )
-        f = interp1d(slow["unix"], slow["value"])
-        slow_interpolated = f(trimmed_fast["unix"])
-        slow = pd.DataFrame({"unix": trimmed_fast["unix"], "value": slow_interpolated})
+#     trimmed_fast = fast.loc[fast["unix"] >= min_timestamp]
+#     slow = slow.loc[slow["unix"] >= min_timestamp]
+#     if len(trimmed_fast) > len(slow):
+#         # different values, ie using a daily for fast and weekly for slow
+#         if slow["unix"].max() < trimmed_fast["unix"].max():
+#             # add another value to the slow moving avarage to facilitate interpolation
+#             slow = slow.append(
+#                 {"unix": trimmed_fast["unix"].max(), "value": slow.iloc[-1]["value"]},
+#                 ignore_index=True,
+#             )
+#         f = interp1d(slow["unix"], slow["value"])
+#         slow_interpolated = f(trimmed_fast["unix"])
+#         slow = pd.DataFrame({"unix": trimmed_fast["unix"], "value": slow_interpolated})
 
-    if "open" in fast.columns.values.tolist():
-        # using price
-        risk_metric = np.divide(trimmed_fast["open"], slow["value"])
-    else:
-        # using moving average
-        risk_metric = np.divide(trimmed_fast["value"], slow["value"])
+#     if "open" in fast.columns.values.tolist():
+#         # using price
+#         risk_metric = np.divide(trimmed_fast["open"], slow["value"])
+#     else:
+#         # using moving average
+#         risk_metric = np.divide(trimmed_fast["value"], slow["value"])
 
-    mean = np.mean(risk_metric)
-    sigma = np.std(risk_metric)
-    normalised = (risk_metric - mean) / sigma
-    risk = norm.cdf(normalised)
-    return pd.DataFrame(
-        {"unix": np.array(trimmed_fast["unix"], dtype=np.int64), "value": risk}
-    )
+#     mean = np.mean(risk_metric)
+#     sigma = np.std(risk_metric)
+#     normalised = (risk_metric - mean) / sigma
+#     risk = norm.cdf(normalised)
+#     return pd.DataFrame(
+#         {"unix": np.array(trimmed_fast["unix"], dtype=np.int64), "value": risk}
+#     )
 
 
-def basic_risk(price):
-    mean = np.mean(price["open"])
-    sigma = np.std(price["open"])
-    normalised = (price - mean) / sigma
-    risk = norm.cdf(normalised)
-    return pd.DataFrame(
-        {"unix": np.array(price["unix"], dtype=np.int64), "value": risk}
-    )
+# def basic_risk(price):
+#     mean = np.mean(price["open"])
+#     sigma = np.std(price["open"])
+#     normalised = (price - mean) / sigma
+#     risk = norm.cdf(normalised)
+#     return pd.DataFrame(
+#         {"unix": np.array(price["unix"], dtype=np.int64), "value": risk}
+#     )
 
 
 def get_maxima(data, range_param=3):
